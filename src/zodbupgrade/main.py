@@ -12,23 +12,17 @@
 #
 ##############################################################################
 
-from setuptools import setup, find_packages
+import sys
+import zodbupgrade.analyze
+import ZODB.FileStorage
+import logging
 
 
-setup(name='zodbupgrade',
-      author='Zope Developers',
-      author_email='zodb-dev@zope.org',
-      description=
-        'Transparently update ZODB class references to their '
-        'canonical locations',
-      version='0.1',
-      package_dir={'': 'src'},
-      packages=find_packages('src'),
-      include_package_data=True,
-      install_requires=[
-          'ZODB3',
-          'setuptools'
-      ],
-      entry_points = dict(
-        console_scripts =
-            ['zodbupgrade = zodbupgrade.main:main']))
+logging.getLogger().addHandler(logging.StreamHandler())
+logging.getLogger().setLevel(0)
+
+
+def main():
+    db = sys.argv[1]
+    storage = ZODB.FileStorage.FileStorage('Data.fs')
+    zodbupgrade.analyze.update_storage(storage)
