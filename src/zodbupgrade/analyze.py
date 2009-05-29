@@ -40,7 +40,7 @@ def find_factory_references(pickle):
         - factories whose dotted name could not be imported (an iterable)
 
     """
-    missing_classes = set()
+    missing_factories = set()
     rewrites_found = dict()
     for op, arg, pos in pickletools.genops(pickle):
         if op.code in SAFE_OPS:
@@ -51,9 +51,13 @@ def find_factory_references(pickle):
                 module = __import__(module_name, globals(), {}, [symbol])
                 factory = getattr(module, symbol)
             except (ImportError, AttributeError):
-                missing_classes.add('%s.%s' % (module_name, symbol))
+                missing_factories.add('%s.%s' % (module_name, symbol))
             else:
                 # XXX Special case broken objects. They don't have __module__
+                if not hasattr(factory, '__name__'):
+                    logging.warn(
+                        "factory %r does not have __name__, can't check canonical location" % factory)
+                    continue
                 if ((factory.__module__, factory.__name__) !=
                     (module_name, symbol)):
                     # The factory is reachable but it's not the
@@ -62,7 +66,7 @@ def find_factory_references(pickle):
                         factory.__module__, factory.__name__)
         else:
             raise ValueError('Unknown pickle opcode %r' % op.code)
-    return rewrites_found, missing_classes
+    return rewrites_found, missing_factories
 
 
 def analyze_storage(storage):
@@ -83,7 +87,7 @@ def analyze_storage(storage):
         count += 1
         pickle_data = StringIO.StringIO(data)
 
-        if not count % 1000:
+        if not count % 5000:
             logger.info(
                 'Analyzed %i objects. Found %i moved classes and %i missing '
                 'classes so far.' % (count, len(rewrites_found), len(missing_classes)))
