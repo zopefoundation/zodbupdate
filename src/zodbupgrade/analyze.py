@@ -77,7 +77,7 @@ def analyze_storage(storage):
 
     """
     missing_classes = set()
-    rewrites_found = set()
+    rewrites_found = dict()
     oids_rewrite = set()
 
     count = 0
@@ -112,12 +112,12 @@ def update_storage(storage):
         raise ValueError(missing_classes)
 
     print "Rewriting database with mapping:"
-    for (old_mod, old_name), (new_mod, new_name) in rewrites_found:
+    for (old_mod, old_name), (new_mod, new_name) in rewrites_found.items():
         print "%s.%s -> %s.%s" % (old_mod, old_name, new_mod, new_name)
 
     print "%i objects need rewriting" % len(oids)
 
-    db = ZODB.DB.DB(storage)
+    db = DB(storage)
     connection = db.open()
     for oid in oids:
         obj = connection.get(oid)
@@ -125,3 +125,4 @@ def update_storage(storage):
     t = transaction.get()
     t.note('Class references updated by `zodbupgrade`')
     transaction.commit()
+    db.close()

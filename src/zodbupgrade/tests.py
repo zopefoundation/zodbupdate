@@ -69,6 +69,29 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.assertRaises(ValueError,
                           zodbupgrade.analyze.update_storage, self.storage)
 
+    def test_factory_renamed(self):
+        # Create a ZODB with an object referencing a factory, then 
+        # rename the the factory but keep a reference from the old name in
+        # place. Update the ZODB. Then remove the old reference. We should
+        # then still be able to access the object.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+        self.db.close()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        self.db.close()
+        self.reopen_storage()
+        zodbupgrade.analyze.update_storage(self.storage)
+
+        del sys.modules['module1'].Factory
+
+        self.reopen_db()
+
+        self.assertEquals('module1', self.root['test'].__class__.__module__)
+        self.assertEquals('NewFactory', self.root['test'].__class__.__name__)
+
 
 def test_suite():
     return unittest.makeSuite(ZODBUpgradeTests)
