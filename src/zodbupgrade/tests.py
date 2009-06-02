@@ -92,6 +92,33 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.assertEquals('module1', self.root['test'].__class__.__module__)
         self.assertEquals('NewFactory', self.root['test'].__class__.__name__)
 
+    def test_factory_registered_with_copy_reg(self):
+        # Factories registered with copy_reg.pickle loose their __name__.
+        # We simply ignore those.
+        class AnonymousFactory(object):
+            def __new__(cls, name):
+                return object.__new__(cls)
+            def __init__(self, name):
+                self._name = name
+            def getName(self):
+                return self._name
+
+        sys.modules['module1'].AnonymousFactory = AnonymousFactory
+        sys.modules['module1'].AnonymousFactory.__module__ = 'module1'
+        sys.modules['module1'].Anonymous = AnonymousFactory('Anonymous')
+        import copy_reg
+        copy_reg.pickle(AnonymousFactory,
+                        AnonymousFactory.getName,
+                        AnonymousFactory)
+        self.root['test'] = sys.modules['module1'].Anonymous
+        transaction.commit()
+        self.db.close()
+        self.reopen_storage()
+        zodbupgrade.analyze.update_storage(self.storage)
+
+        self.assertEquals('module1', self.root['test'].__class__.__module__)
+        self.assertEquals('AnonymousFactory', self.root['test'].__class__.__name__)
+
 
 def test_suite():
     return unittest.makeSuite(ZODBUpgradeTests)

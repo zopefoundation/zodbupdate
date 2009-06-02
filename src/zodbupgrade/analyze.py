@@ -53,10 +53,13 @@ def find_factory_references(pickle):
             except (ImportError, AttributeError):
                 missing_factories.add('%s.%s' % (module_name, symbol))
             else:
-                # XXX Special case broken objects. They don't have __module__
                 if not hasattr(factory, '__name__'):
                     logging.warn(
                         "factory %r does not have __name__, can't check canonical location" % factory)
+                    continue
+                if not hasattr(factory, '__module__'):
+                    logging.warn(
+                        "factory %r does not have __module__, can't check canonical location" % factory)
                     continue
                 if ((factory.__module__, factory.__name__) !=
                     (module_name, symbol)):
