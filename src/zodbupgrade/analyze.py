@@ -58,6 +58,9 @@ def find_factory_references(pickle):
                         "factory %r does not have __name__, can't check canonical location" % factory)
                     continue
                 if not hasattr(factory, '__module__'):
+                    # TODO: This case isn't covered with a test. I just
+                    # couldn't provoke a factory to not have a __module__ but
+                    # users reported this issue to me.
                     logging.warn(
                         "factory %r does not have __module__, can't check canonical location" % factory)
                     continue
