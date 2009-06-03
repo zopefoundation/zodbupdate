@@ -54,14 +54,14 @@ def find_factory_references(pickle):
                 missing_factories.add('%s.%s' % (module_name, symbol))
             else:
                 if not hasattr(factory, '__name__'):
-                    logging.warn(
+                    logger.warn(
                         "factory %r does not have __name__, can't check canonical location" % factory)
                     continue
                 if not hasattr(factory, '__module__'):
                     # TODO: This case isn't covered with a test. I just
                     # couldn't provoke a factory to not have a __module__ but
                     # users reported this issue to me.
-                    logging.warn(
+                    logger.warn(
                         "factory %r does not have __module__, can't check canonical location" % factory)
                     continue
                 if ((factory.__module__, factory.__name__) !=
@@ -117,11 +117,10 @@ def update_storage(storage):
     if missing_classes:
         raise ValueError(missing_classes)
 
-    print "Rewriting database with mapping:"
+    logger.info("Rewriting database with mapping:")
     for (old_mod, old_name), (new_mod, new_name) in rewrites_found.items():
-        print "%s.%s -> %s.%s" % (old_mod, old_name, new_mod, new_name)
-
-    print "%i objects need rewriting" % len(oids)
+        logger.info("%s.%s -> %s.%s" % (old_mod, old_name, new_mod, new_name))
+    logger.info("%i objects need rewriting" % len(oids))
 
     db = DB(storage)
     connection = db.open()

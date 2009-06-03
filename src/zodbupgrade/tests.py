@@ -21,13 +21,22 @@ import types
 import unittest
 import transaction
 import zodbupgrade.analyze
+import logging 
 
 
+class IgnoringFilter(object):
+
+    def filter(self, record):
+        return False
+
+ignore = IgnoringFilter()
 
 
 class ZODBUpgradeTests(unittest.TestCase):
 
     def setUp(self):
+        zodbupgrade.analyze.logger.addFilter(ignore)
+
         sys.modules['module1'] =  types.ModuleType('module1')
         class Factory(object):
             pass
@@ -39,6 +48,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.reopen_db()
 
     def tearDown(self):
+        zodbupgrade.analyze.logger.removeFilter(ignore)
         del sys.modules['module1']
 
         self.db.close()
