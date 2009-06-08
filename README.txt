@@ -1,19 +1,19 @@
-==================================================================
-zodbupgrade - Upgrade an existing databases to match your software
-==================================================================
+===============================================================
+zodbupgrade - Upgrade existing databases to match your software
+===============================================================
 
 This package provides a tool that automatically identifies and updates
 references from persistent objects to classes that are in the process of being
 moved from one module to another and/or being renamed.
 
 If a class is being moved or renamed, you need to update all references from
-your database to this name before finally deleting the old code.
+your database to the new name before finally deleting the old code.
 
 This tool looks through all current objects of your database, identifies
 moved/renamed classes and `touches` objects accordingly. It creates a single
 transaction that contains the update of your database.
 
-Having run this tool, you are then able to delete the old code.
+Having run this tool, you are then free to delete the old code.
 
 Usage
 =====
