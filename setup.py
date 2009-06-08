@@ -29,7 +29,7 @@ setup(name='zodbupgrade',
         read('TODO.txt')
         + '\n' +
         read('CHANGES.txt')),
-      version='0.1dev',
+      version='0.2dev',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
