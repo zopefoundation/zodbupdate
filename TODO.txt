@@ -1,0 +1,9 @@
+TODO
+====
+
+- Compress repeated warnings, ignore warnings that are known to come from the
+  framework (factory PermissionSetting: Allow does not have __name__, can't
+  check canonical location)
+
+- Provide "offline" updating: read a list of old/new pairs and update pickles
+  directly without needing the old code
