@@ -29,6 +29,10 @@ SAFE_OPS = 'IJKML\x8a\x8bSTUN\x88\x89VXFG]ael)t\x85\x86\x87}dsu02(1ghjpqrRbo\x81
 KNOWN_HARD = 'ci'
 
 
+class MissingClasses(ValueError):
+    pass
+
+
 def find_factory_references(pickle):
     """Analyze a pickle for moved or missing factory references.
 
@@ -82,6 +86,7 @@ def analyze_storage(storage):
     updating, a list of classes that are missing, and a list of rewrites.
 
     """
+    logger.info('Analyzing database ...')
     missing_classes = set()
     rewrites_found = dict()
     oids_rewrite = set()
@@ -95,8 +100,8 @@ def analyze_storage(storage):
 
         if not count % 5000:
             logger.info(
-                'Analyzed %i objects. Found %i moved classes and %i missing '
-                'classes so far.' % (count, len(rewrites_found), len(missing_classes)))
+                '    %i objects - %i moved classes - %i classes missing'
+                % (count, len(rewrites_found), len(missing_classes)))
 
         # ZODB records consist of two concatenated pickles, so the following
         # needs to be done twice:
@@ -109,19 +114,26 @@ def analyze_storage(storage):
 
         if next is None:
             break
+    logger.info('    Analyzation completed.')
     return missing_classes, rewrites_found, oids_rewrite
 
 
-def update_storage(storage):
+def update_storage(storage, ignore_missing=False, dry=False):
     missing_classes, rewrites_found, oids = analyze_storage(storage)
-    if missing_classes:
-        raise ValueError(missing_classes)
+    if missing_classes and not ignore_missing:
+        raise MissingClasses(missing_classes)
 
-    logger.info("Rewriting database with mapping:")
+    if rewrites_found:
+        logger.info("Found moved classes:")
     for (old_mod, old_name), (new_mod, new_name) in rewrites_found.items():
         logger.info("%s.%s -> %s.%s" % (old_mod, old_name, new_mod, new_name))
-    logger.info("%i objects need rewriting" % len(oids))
+    logger.info("%i objects need updating" % len(oids))
 
+    if dry:
+        logger.info('Dry run selected, aborting.')
+        return
+
+    logger.info('Starting database update')
     db = DB(storage)
     connection = db.open()
     for oid in oids:
@@ -131,3 +143,4 @@ def update_storage(storage):
     t.note('Class references updated by `zodbupgrade`')
     transaction.commit()
     db.close()
+    logger.info('Database update completed')

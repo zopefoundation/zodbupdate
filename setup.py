@@ -14,14 +14,22 @@
 
 from setuptools import setup, find_packages
 
+read = lambda x:open(x).read()
 
 setup(name='zodbupgrade',
       author='Zope Developers',
       author_email='zodb-dev@zope.org',
+      url='http://www.python.org/pypi/zodbupgrade',
+      license='ZPL 2.1',
       description=
-        'Transparently update ZODB class references to their '
-        'canonical locations',
-      version='0.1',
+        'Update ZODB class references for moved or renamed classes.',
+      long_description=(
+        read('README.txt')
+        + '\n' +
+        read('TODO.txt')
+        + '\n' +
+        read('CHANGES.txt')),
+      version='0.1dev',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
