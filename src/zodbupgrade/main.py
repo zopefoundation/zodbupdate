@@ -12,17 +12,52 @@
 #
 ##############################################################################
 
-import sys
-import zodbupgrade.analyze
+import ZODB.config
 import ZODB.FileStorage
 import logging
+import optparse
+import sys
+import zodbupgrade.analyze
 
 
-logging.getLogger().addHandler(logging.StreamHandler())
-logging.getLogger().setLevel(0)
-
+parser = optparse.OptionParser(
+    description="Updates all references to classes to their canonical location.")
+parser.add_option("-f", "--file",
+                  help="load FileStorage")
+parser.add_option("-c", "--config",
+                  help="load storage from config file")
+parser.add_option("-n", "--dry-run", action="store_true",
+                  help="perform a trial run with no changes made")
+parser.add_option("--ignore-missing", action="store_true",
+                  help="update database even if classes are missing")
+parser.add_option("-q", "--quiet", action="store_true",
+                  help="suppress non-error messages")
 
 def main():
-    db = sys.argv[1]
-    storage = ZODB.FileStorage.FileStorage('Data.fs')
-    zodbupgrade.analyze.update_storage(storage)
+    options, args = parser.parse_args()
+
+    if options.file and options.config:
+        raise SystemExit(
+            'Exactly one of --file or --config must be given.')
+
+    if options.file:
+        storage = ZODB.FileStorage.FileStorage(options.file)
+    elif options.config:
+        storage = ZODB.config.storageFromURL(options.config)
+    else:
+        raise SystemExit(
+            'Exactly one of --file or --config must be given.')
+
+    if options.quiet:
+        level = logging.ERROR
+    else:
+        level = logging.INFO
+    logging.getLogger().addHandler(logging.StreamHandler())
+    logging.getLogger().setLevel(level)
+
+    try:
+        zodbupgrade.analyze.update_storage(
+            storage, options.ignore_missing, options.dry_run)
+    except zodbupgrade.analyze.MissingClasses, e:
+        for class_ in e.args[0]:
+            zodbupgrade.analyze.logger.error('Missing class: %s' % class_)
