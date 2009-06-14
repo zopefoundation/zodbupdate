@@ -34,44 +34,71 @@ fact_ref = lambda arg:arg.replace(' ','\n')+'\n'
 arg_len = lambda arg:packi(len(arg))+arg
 unicode_escape = lambda arg:arg.replace('\\', '\\u005c').replace('\n', '\\u000a').encode('raw-unicode-escape')+'\n'
 
-noargs = '().NQR]abdeostu}l\x81\x85\x86\x87\x88\x89210'
+noargs = [pickle.EMPTY_TUPLE,
+          pickle.MARK,
+          pickle.STOP,
+          pickle.NONE,
+          pickle.BINPERSID,
+          pickle.REDUCE,
+          pickle.EMPTY_LIST,
+          pickle.APPEND,
+          pickle.BUILD,
+          pickle.DICT,
+          pickle.APPENDS,
+          pickle.OBJ,
+          pickle.SETITEM,
+          pickle.TUPLE,
+          pickle.SETITEMS,
+          pickle.EMPTY_DICT,
+          pickle.LIST,
+          pickle.POP,
+          pickle.POP_MARK,
+          pickle.DUP,
+          pickle.NEWOBJ,
+          pickle.TUPLE1,
+          pickle.TUPLE2,
+          pickle.TUPLE3,
+          pickle.NEWTRUE,
+          pickle.NEWFALSE]
+
 generators = {
-    'G': lambda arg:struct.pack('>d', arg),
-    'I': lambda arg:reprn(arg) if type(arg) is int else '0%s\n' % int(arg),
-    'J': packi,
-    'K': chr,
-    'L': reprn,
-    'M': lambda arg:"%c%c" % (arg&0xff, arg>>8),
-    'S': reprn,
-    'T': arg_len,
-    'U': lambda arg:chr(len(arg)) + arg,
-    'X': lambda arg:arg_len(arg.encode('utf-8')),
-    'c': fact_ref,
-    'i': fact_ref,
-    'h': chr,
-    'j': packi,
-    'p': reprn,
-    'g': reprn,
-    'q': chr,
-    'r': packi,
-    'P': strn,
-    'V': unicode_escape,
-    '\x80': chr,
-    '\x82': chr,
-    '\x83': lambda arg:"%c%c" % (arg&0xff, arg>>8),
-    '\x84': packi,
-    '\x8a': lambda arg:chr(len(pickle.encode_long(arg)))+pickle.encode_long(arg),
-    '\x8b': lambda arg:arg_len(pickle.encode_long(arg)),
+    pickle.BINFLOAT: lambda arg:struct.pack('>d', arg),
+    pickle.FLOAT: reprn,
+    pickle.INT: lambda arg:reprn(arg) if type(arg) is int else '0%s\n' % int(arg),
+    pickle.BININT: packi,
+    pickle.BININT1: chr,
+    pickle.LONG: reprn,
+    pickle.BININT2: lambda arg:"%c%c" % (arg&0xff, arg>>8),
+    pickle.STRING: reprn,
+    pickle.BINSTRING: arg_len,
+    pickle.SHORT_BINSTRING: lambda arg:chr(len(arg)) + arg,
+    pickle.BINUNICODE: lambda arg:arg_len(arg.encode('utf-8')),
+    pickle.GLOBAL: fact_ref,
+    pickle.INST: fact_ref,
+    pickle.BINGET: chr,
+    pickle.LONG_BINGET: packi,
+    pickle.PUT: reprn,
+    pickle.GET: reprn,
+    pickle.BINPUT: chr,
+    pickle.LONG_BINPUT: packi,
+    pickle.PERSID: strn,
+    pickle.UNICODE: unicode_escape,
+    pickle.PROTO: chr,
+    pickle.EXT1: chr,
+    pickle.EXT2: lambda arg:"%c%c" % (arg&0xff, arg>>8),
+    pickle.EXT4: packi,
+    pickle.LONG1: lambda arg:chr(len(pickle.encode_long(arg)))+pickle.encode_long(arg),
+    pickle.LONG4: lambda arg:arg_len(pickle.encode_long(arg)),
 }
 
 
-def to_pickle_chunk(op, arg):
+def to_pickle_chunk(opcode, arg):
     """Transform an operation and its argument into pickle format."""
-    chunk = op.code
-    if op.code in noargs:
+    chunk = opcode
+    if opcode in noargs:
         pass
-    elif op.code in generators:
-        generated = generators[op.code](arg)
+    elif opcode in generators:
+        generated = generators[opcode](arg)
         chunk += generated
     else:
         raise ValueError('Unknown opcode: %s')

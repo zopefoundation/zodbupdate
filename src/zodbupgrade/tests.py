@@ -14,14 +14,16 @@
 
 import ZODB
 import ZODB.FileStorage
+import logging 
 import os
+import pickle
 import sys
 import tempfile
+import transaction
 import types
 import unittest
-import transaction
 import zodbupgrade.analyze
-import logging 
+import zodbupgrade.picklefilter
 
 
 class IgnoringFilter(object):
@@ -130,5 +132,190 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.assertEquals('AnonymousFactory', self.root['test'].__class__.__name__)
 
 
+class PickleFilterTests(unittest.TestCase):
+    # Tests the pickle filter for re-pickling op-codes
+
+    def assertNonArgCode(self, code):
+        self.assertArgCode(code, code, None)
+
+    def assertArgCode(self, result, code, arg):
+        self.assertEquals(
+            result,
+            zodbupgrade.picklefilter.to_pickle_chunk(code, arg))
+
+    def test_sanity_check(self):
+        # Check binary compatibility on simple "real" pickle
+        pass
+
+    def test_MARK(self):
+        self.assertNonArgCode(pickle.MARK)
+
+    def test_STOP(self):
+        self.assertNonArgCode(pickle.STOP)
+
+    def test_POP(self):
+        self.assertNonArgCode(pickle.POP)
+
+    def test_POP_MARK(self):
+        self.assertNonArgCode(pickle.POP_MARK)
+
+    def test_DUP(self):
+        self.assertNonArgCode(pickle.DUP)
+
+    def test_FLOAT(self):
+        self.assertArgCode('F12.300000000000001\n', pickle.FLOAT, 12.3)
+
+    def test_INT(self):
+        self.assertArgCode('I01237940039285380274899124224\n', pickle.INT, 2**90)
+
+    def test_BININT(self):
+        self.assertArgCode('J\x00\x00\x01\x00', pickle.BININT, 0xffff+1)
+
+    def test_BININT1(self):
+        self.assertArgCode('K\xf0', pickle.BININT1, 0xf0)
+
+    def test_LONG(self):
+        self.assertArgCode("L1546\n", pickle.LONG, 1546)
+
+    def test_BININT2(self):
+        self.assertArgCode('M\xf0\xff', pickle.BININT2, 0xfff0)
+
+    def test_NONE(self):
+        self.assertNonArgCode(pickle.NONE)
+
+    def test_PERSID(self):
+        self.assertArgCode('P12345\n', pickle.PERSID, '12345')
+
+    def test_BINPERSID(self):
+        self.assertNonArgCode(pickle.BINPERSID)
+
+    def test_REDUCE(self):
+        self.assertNonArgCode(pickle.REDUCE)
+
+    def test_STRING(self):
+        self.assertArgCode("S'asdf'\n", pickle.STRING, 'asdf')
+
+    def test_BINSTRING(self):
+        self.assertArgCode('T\x06\x00\x00\x00foobar', pickle.BINSTRING, 'foobar')
+
+    def test_SHORT_BINSTRING(self):
+        self.assertArgCode('U\x04asdf', pickle.SHORT_BINSTRING, 'asdf')
+
+    def test_UNICODE(self):
+        self.assertArgCode('V\xfcnders\n', pickle.UNICODE, u'\xfcnders')
+
+    def test_BINUNICODE(self):
+        self.assertArgCode('X\x06\x00\x00\x00\xc3\xbc1234', pickle.BINUNICODE, u'\xfc1234')
+
+    def test_APPEND(self):
+        self.assertNonArgCode(pickle.APPEND)
+
+    def test_BUILD(self):
+        self.assertNonArgCode(pickle.BUILD)
+
+    def test_GLOBAL(self):
+        self.assertArgCode('cbar\nfoo\n', pickle.GLOBAL, 'bar foo')
+
+    def test_DICT(self):
+        self.assertNonArgCode(pickle.DICT)
+
+    def test_EMPTY_DICT(self):
+        self.assertNonArgCode(pickle.EMPTY_DICT)
+
+    def test_APPENDS(self):
+        self.assertNonArgCode(pickle.APPENDS)
+
+    def test_GET(self):
+        self.assertArgCode('g12\n', pickle.GET, 12)
+
+    def test_BINGET(self):
+        self.assertArgCode('h\x80', pickle.BINGET, 128)
+
+    def test_INST(self):
+        self.assertArgCode('ifoo\nbar\n', pickle.INST, 'foo bar')
+
+    def test_LONG_BINGET(self):
+        self.assertArgCode('j\x00\x04\x00\x00', pickle.LONG_BINGET, 1024)
+
+    def test_LIST(self):
+        self.assertNonArgCode(pickle.LIST)
+
+    def test_EMPTY_LIST(self):
+        self.assertNonArgCode(pickle.EMPTY_LIST)
+
+    def test_OBJ(self):
+        self.assertNonArgCode(pickle.OBJ)
+
+    def test_PUT(self):
+        self.assertArgCode("p12\n", pickle.PUT, 12)
+
+    def test_BINPUT(self):
+        self.assertArgCode('q\x80', pickle.BINPUT, 128)
+
+    def test_LONG_BINPUT(self):
+        self.assertArgCode('r\x00\x04\x00\x00', pickle.LONG_BINPUT, 1024)
+
+    def test_SETITEM(self):
+        self.assertNonArgCode(pickle.SETITEM)
+
+    def test_TUPLE(self):
+        self.assertNonArgCode(pickle.TUPLE)
+
+    def test_EMPTY_TUPLE(self):
+        self.assertNonArgCode(pickle.EMPTY_TUPLE)
+
+    def test_SETITEMS(self):
+        self.assertNonArgCode(pickle.SETITEMS)
+
+    def test_BINFLOAT(self):
+        self.assertArgCode('G@(\x00\x00\x00\x00\x00\x00',
+                           pickle.BINFLOAT, 12.0)
+
+    def test_TRUE(self):
+        self.assertArgCode(pickle.TRUE, pickle.INT, True)
+
+    def test_FALSE(self):
+        self.assertArgCode(pickle.FALSE, pickle.INT, False)
+
+    def test_PROTO(self):
+        self.assertArgCode('\x80\x01', pickle.PROTO, 1)
+
+    def test_NEWOBJ(self):
+        self.assertNonArgCode(pickle.NEWOBJ)
+
+    def test_EXT1(self):
+        self.assertArgCode('\x82\xf0', pickle.EXT1, 0xf0)
+
+    def test_EXT2(self):
+        self.assertArgCode('\x83\x00\x01', pickle.EXT2, 0xff+1)
+
+    def test_EXT4(self):
+        self.assertArgCode('\x84\x00\x00\x01\x00', pickle.EXT4, 0xffff+1)
+
+    def test_TUPLE1(self):
+        self.assertNonArgCode(pickle.TUPLE1)
+
+    def test_TUPLE2(self):
+        self.assertNonArgCode(pickle.TUPLE2)
+
+    def test_TUPLE3(self):
+        self.assertNonArgCode(pickle.TUPLE3)
+
+    def test_NEWTRUE(self):
+        self.assertNonArgCode(pickle.NEWTRUE)
+
+    def test_NEWFALSE(self):
+        self.assertNonArgCode(pickle.NEWFALSE)
+
+    def test_LONG1(self):
+        self.assertArgCode('\x8a\x02\x80\x00', pickle.LONG1, 128)
+
+    def test_LONG4(self):
+        self.assertArgCode('\x8b\x02\x00\x00\x00\x00\x04', pickle.LONG4, 2**10)
+
+
 def test_suite():
-    return unittest.makeSuite(ZODBUpgradeTests)
+    suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(ZODBUpgradeTests))
+    suite.addTest(unittest.makeSuite(PickleFilterTests))
+    return suite
