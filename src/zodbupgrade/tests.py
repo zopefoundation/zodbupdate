@@ -49,6 +49,11 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.db = None
         self.reopen_db()
 
+    def update(self):
+        updater = zodbupgrade.analyze.Updater(self.storage)
+        updater()
+        self.storage.close()
+
     def tearDown(self):
         zodbupgrade.analyze.logger.removeFilter(ignore)
         del sys.modules['module1']
@@ -78,8 +83,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.db.close()
         self.reopen_storage()
 
-        self.assertRaises(ValueError,
-                          zodbupgrade.analyze.update_storage, self.storage)
+        self.assertRaises(ValueError, self.update)
 
     def test_factory_renamed(self):
         # Create a ZODB with an object referencing a factory, then 
@@ -95,7 +99,8 @@ class ZODBUpgradeTests(unittest.TestCase):
 
         self.db.close()
         self.reopen_storage()
-        zodbupgrade.analyze.update_storage(self.storage)
+
+        self.update()
 
         del sys.modules['module1'].Factory
 
@@ -126,7 +131,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         transaction.commit()
         self.db.close()
         self.reopen_storage()
-        zodbupgrade.analyze.update_storage(self.storage)
+        self.update()
 
         self.assertEquals('module1', self.root['test'].__class__.__module__)
         self.assertEquals('AnonymousFactory', self.root['test'].__class__.__name__)

@@ -101,7 +101,7 @@ def to_pickle_chunk(opcode, arg):
         generated = generators[opcode](arg)
         chunk += generated
     else:
-        raise ValueError('Unknown opcode: %s')
+        raise ValueError('Unknown opcode: %s' % (opcode,))
     return chunk
 
 
@@ -116,8 +116,10 @@ def filter(f, pickle_data):
 
     """
     new = StringIO.StringIO()
-    for op, arg, pos in pickletools.genops(p):
+    for op, arg, pos in pickletools.genops(pickle_data):
+        op = op.code
         result = f(op, arg)
-        op, arg = result if result is not None else op, arg
+        if result is not None:
+            op, arg = result
         new.write(to_pickle_chunk(op, arg))
     return new.getvalue()
