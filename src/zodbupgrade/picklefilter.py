@@ -22,7 +22,6 @@ import pickle
 import pickletools
 import StringIO
 
-
 # The following functions were created on the basis of the code found in
 # pickle.py. They reflect all opcodes that pickle knows about and how they get
 # written to the output stream under the knowledge how pickletools.genops
@@ -30,8 +29,10 @@ import StringIO
 
 packi = lambda arg:struct.pack('<i', arg)
 reprn = lambda arg:repr(arg)+'\n'
+strn = lambda arg:str(arg)+'\n'
 fact_ref = lambda arg:arg.replace(' ','\n')+'\n'
 arg_len = lambda arg:packi(len(arg))+arg
+unicode_escape = lambda arg:arg.replace('\\', '\\u005c').replace('\n', '\\u000a').encode('raw-unicode-escape')+'\n'
 
 noargs = '().NQR]abdeostu}l\x81\x85\x86\x87\x88\x89210'
 generators = {
@@ -53,8 +54,8 @@ generators = {
     'g': reprn,
     'q': chr,
     'r': packi,
-    'P': lambda arg:str(arg)+'\n',
-    'V': lambda arg:arg.replace('\\', '\\u005c').replace('\n', '\\u000a').encode('raw-unicode-escape')+'\n',
+    'P': strn,
+    'V': unicode_escape,
     '\x80': chr,
     '\x82': chr,
     '\x83': lambda arg:"%c%c" % (arg&0xff, arg>>8),
@@ -64,42 +65,32 @@ generators = {
 }
 
 
-def analyze(p):
-    new = ''
-    for op, arg, pos in pickletools.genops(p):
-        new += op.code
-        if op.code in noargs:
-            pass
-        elif op.code in generators:
-            generated = generators[op.code](arg)
-            new += generated
-        else:
-            print "+", op.code, arg, pos
-            raise SystemExit()
-    return new
+def to_pickle_chunk(op, arg):
+    """Transform an operation and its argument into pickle format."""
+    chunk = op.code
+    if op.code in noargs:
+        pass
+    elif op.code in generators:
+        generated = generators[op.code](arg)
+        chunk += generated
+    else:
+        raise ValueError('Unknown opcode: %s')
+    return chunk
 
-total = root._p_jar._db.objectCount()
-storage = root._p_jar._storage
-count = 0
-next = None
-while True:
-    last = next
-    count += 1
-    oid, tid, data, next = storage.record_iternext(next)
-    pickle_data = StringIO.StringIO(data)
-    # ZODB records consist of two concatenated pickles, so the following
-    # needs to be done twice:
-    if not count % 5000:
-        print '%s objects (%s%%)' % (count, float(count)/total*100.0)
-        print ZODB.utils.oid_repr(oid), ZODB.utils.oid_repr(tid)
-    new = ''
-    for i in range(2):
-        new += analyze(pickle_data)
-    if new != data:
-        print repr(last)
-        print repr(new)
-        print "="*80
-        print repr(data)
-        raise SystemExit()
-    if next is None:
-        break
+
+def filter(f, pickle_data):
+    """Apply filter function to each opcode of a pickle, return new pickle.
+
+    Calls function for each opcode with the arguments (code, arg) as created
+    by the pickletools.genops function. 
+
+    The filter function is expected to return a new (code, arg) tuple or None
+    which causes the old (code, arg) tuple to be placed into the stream again.
+
+    """
+    new = StringIO.StringIO()
+    for op, arg, pos in pickletools.genops(p):
+        result = f(op, arg)
+        op, arg = result if result is not None else op, arg
+        new.write(to_pickle_chunk(op, arg))
+    return new.getvalue()
