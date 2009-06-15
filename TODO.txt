@@ -1,15 +1,12 @@
 TODO
 ====
 
-- Compress repeated warnings, ignore warnings that are known to come from the
-  framework (factory PermissionSetting: Allow does not have __name__, can't
-  check canonical location)
+- Write out rewritten class names to file that can be read for offline
+  updating.
 
 - Provide "offline" updating: read a list of old/new pairs and update pickles
   directly without needing the old code. Use setuptools entry points for
   discovering those mappings?
 
-- Improve logging after refactoring
+- Review and accordingly improve logging.
 
-- Write out rewritten class names to file that can be read for offline
-  updating.

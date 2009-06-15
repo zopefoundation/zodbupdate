@@ -33,6 +33,20 @@ parser.add_option("--ignore-missing", action="store_true",
 parser.add_option("-q", "--quiet", action="store_true",
                   help="suppress non-error messages")
 
+class DuplicateFilter(object):
+
+    def __init__(self):
+        self.seen = set()
+
+    def filter(self, record):
+        if record.msg in self.seen:
+            return False
+        self.seen.add(record.msg)
+        return True
+
+duplicate_filter = DuplicateFilter()
+
+
 def main():
     options, args = parser.parse_args()
 
@@ -54,6 +68,12 @@ def main():
         level = logging.INFO
     logging.getLogger().addHandler(logging.StreamHandler())
     logging.getLogger().setLevel(level)
+    logging.getLogger('zodbupgrade').addFilter(duplicate_filter)
 
-    upgrader = zodbupgrade.analyze.Upgrader(storage)
-    upgrader()
+    updater = zodbupgrade.analyze.Updater(storage,
+                                          dry=options.dry_run,
+                                          ignore_missing=options.ignore_missing)
+    try:
+        updater()
+    except Exception, e:
+        logging.error('Stopped processing, due to: %s' % e)

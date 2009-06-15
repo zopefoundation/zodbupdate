@@ -33,6 +33,7 @@ class Updater(object):
         self.ignore_missing = ignore_missing
         self.dry = dry
         self.storage = storage
+        self.missing = set()
 
     def __call__(self):
         t = transaction.Transaction()
@@ -43,11 +44,14 @@ class Updater(object):
             new = self.update_record(current)
             if new == current:
                 continue
+            logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
             self.storage.store(oid, serial, new, '', t)
 
         if self.dry:
+            logger.info('Dry run selected, aborting transaction.')
             self.storage.tpc_abort(t)
         else:
+            logger.info('Committing changes.')
             self.storage.tpc_vote(t)
             self.storage.tpc_finish(t)
 
@@ -81,11 +85,17 @@ class Updater(object):
 
         # XXX Handle missing factories
         factory_module, factory_name = arg.split(' ')
-        module = __import__(factory_module, globals(), {}, [factory_name])
         try:
+            module = __import__(factory_module, globals(), {}, [factory_name])
             factory = getattr(module, factory_name)
-        except AttributeError:
-            raise ValueError()
+        except (AttributeError, ImportError):
+            name = '%s.%s' % (factory_module, factory_name)
+            message = 'Missing factory: %s' % name
+            logger.info(message)
+            self.missing.add(name)
+            if self.ignore_missing:
+                return
+            raise ValueError(message)
 
         if not hasattr(factory, '__name__'):
             logger.warn(

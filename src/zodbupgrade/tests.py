@@ -13,6 +13,7 @@
 ##############################################################################
 
 import ZODB
+import ZODB.broken
 import ZODB.FileStorage
 import logging 
 import os
@@ -47,13 +48,24 @@ class ZODBUpgradeTests(unittest.TestCase):
         Factory.__module__ = 'module1'
 
         _, self.dbfile = tempfile.mkstemp()
-        self.db = None
-        self.reopen_db()
+
+        self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
+        self.db = ZODB.DB(self.storage)
+        self.conn = self.db.open()
+        self.root = self.conn.root()
 
     def update(self, **args):
+        self.db.close()
+
+        self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
         updater = zodbupgrade.analyze.Updater(self.storage, **args)
         updater()
         self.storage.close()
+
+        self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
+        self.db = ZODB.DB(self.storage)
+        self.conn = self.db.open()
+        self.root = self.conn.root()
         return updater
 
     def tearDown(self):
@@ -66,15 +78,6 @@ class ZODBUpgradeTests(unittest.TestCase):
         os.unlink(self.dbfile + '.tmp')
         os.unlink(self.dbfile + '.lock')
 
-    def reopen_storage(self):
-        self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
-
-    def reopen_db(self):
-        self.reopen_storage()
-        self.db = ZODB.DB(self.storage)
-        self.conn = self.db.open()
-        self.root = self.conn.root()
-
     def test_factory_missing(self):
         # Create a ZODB with an object referencing a factory, then 
         # remove the factory and analyze the ZODB.
@@ -82,10 +85,22 @@ class ZODBUpgradeTests(unittest.TestCase):
         transaction.commit()
         del sys.modules['module1'].Factory
 
-        self.db.close()
-        self.reopen_storage()
-
         self.assertRaises(ValueError, self.update)
+
+    def test_factory_ignore_missing(self):
+        # Create a ZODB with an object referencing a factory, then 
+        # remove the factory and analyze the ZODB.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+        del sys.modules['module1'].Factory
+
+        self.update(ignore_missing=True)
+
+        self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assert_(isinstance(self.root['test'],
+                                ZODB.broken.PersistentBroken))
+
 
     def test_factory_renamed(self):
         # Create a ZODB with an object referencing a factory, then 
@@ -99,14 +114,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
-        self.db.close()
-        self.reopen_storage()
-
         self.update()
-
-        del sys.modules['module1'].Factory
-
-        self.reopen_db()
 
         self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
@@ -123,20 +131,12 @@ class ZODBUpgradeTests(unittest.TestCase):
         sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
-        self.db.close()
-        self.reopen_storage()
-
         self.update(dry=True)
-
-        self.reopen_db()
 
         self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
 
-        self.db.close()
-        self.reopen_storage()
         self.update(dry=False)
-        self.reopen_db()
 
         self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
@@ -161,8 +161,7 @@ class ZODBUpgradeTests(unittest.TestCase):
                         AnonymousFactory)
         self.root['test'] = sys.modules['module1'].Anonymous
         transaction.commit()
-        self.db.close()
-        self.reopen_storage()
+
         self.update()
 
         self.assertEquals('module1', self.root['test'].__class__.__module__)
