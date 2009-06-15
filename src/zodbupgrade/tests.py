@@ -114,7 +114,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.assertEquals('NewFactory', self.root['test'].__class__.__name__)
 
     def test_factory_renamed_dryrun(self):
-        # Run an update with "dy run" option and see that the transaction is
+        # Run an update with "dy run" option and see that the pickle is
         # not updated.
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
