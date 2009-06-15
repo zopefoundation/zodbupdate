@@ -6,4 +6,10 @@ TODO
   check canonical location)
 
 - Provide "offline" updating: read a list of old/new pairs and update pickles
-  directly without needing the old code
+  directly without needing the old code. Use setuptools entry points for
+  discovering those mappings?
+
+- Improve logging after refactoring
+
+- Write out rewritten class names to file that can be read for offline
+  updating.
