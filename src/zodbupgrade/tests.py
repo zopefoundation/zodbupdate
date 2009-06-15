@@ -16,6 +16,7 @@ import ZODB
 import ZODB.FileStorage
 import logging 
 import os
+import persistent
 import pickle
 import sys
 import tempfile
@@ -40,7 +41,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         zodbupgrade.analyze.logger.addFilter(ignore)
 
         sys.modules['module1'] =  types.ModuleType('module1')
-        class Factory(object):
+        class Factory(persistent.Persistent):
             pass
         sys.modules['module1'].Factory = Factory
         Factory.__module__ = 'module1'
@@ -49,10 +50,11 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.db = None
         self.reopen_db()
 
-    def update(self):
-        updater = zodbupgrade.analyze.Updater(self.storage)
+    def update(self, **args):
+        updater = zodbupgrade.analyze.Updater(self.storage, **args)
         updater()
         self.storage.close()
+        return updater
 
     def tearDown(self):
         zodbupgrade.analyze.logger.removeFilter(ignore)
@@ -106,8 +108,38 @@ class ZODBUpgradeTests(unittest.TestCase):
 
         self.reopen_db()
 
+        self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertEquals('module1', self.root['test'].__class__.__module__)
         self.assertEquals('NewFactory', self.root['test'].__class__.__name__)
+
+    def test_factory_renamed_dryrun(self):
+        # Run an update with "dy run" option and see that the transaction is
+        # not updated.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+        self.db.close()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        self.db.close()
+        self.reopen_storage()
+
+        self.update(dry=True)
+
+        self.reopen_db()
+
+        self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
+
+        self.db.close()
+        self.reopen_storage()
+        self.update(dry=False)
+        self.reopen_db()
+
+        self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
 
     def test_factory_registered_with_copy_reg(self):
         # Factories registered with copy_reg.pickle loose their __name__.
