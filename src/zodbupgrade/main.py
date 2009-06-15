@@ -55,9 +55,5 @@ def main():
     logging.getLogger().addHandler(logging.StreamHandler())
     logging.getLogger().setLevel(level)
 
-    try:
-        zodbupgrade.analyze.update_storage(
-            storage, options.ignore_missing, options.dry_run)
-    except zodbupgrade.analyze.MissingClasses, e:
-        for class_ in e.args[0]:
-            zodbupgrade.analyze.logger.error('Missing class: %s' % class_)
+    upgrader = zodbupgrade.analyze.Upgrader(storage)
+    upgrader()

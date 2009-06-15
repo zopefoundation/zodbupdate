@@ -26,11 +26,6 @@ import zodbupgrade.picklefilter
 logger = logging.getLogger('zodbupgrade')
 
 
-class MissingClasses(ValueError):
-    pass
-
-
-
 class Updater(object):
     """Update class references for all current objects in a storage."""
 
@@ -109,9 +104,3 @@ class Updater(object):
         # XXX Log for later reuse
         new_arg = '%s %s' % (factory.__module__, factory.__name__)
         return code, new_arg
-
-
-
-def main(storage, **kw):
-    updater = Updater(storage, **kw)
-    updater()
