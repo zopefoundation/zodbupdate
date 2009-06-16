@@ -24,7 +24,7 @@ import tempfile
 import transaction
 import types
 import unittest
-import zodbupdate.analyze
+import zodbupdate.update
 import zodbupdate.picklefilter
 
 
@@ -39,7 +39,7 @@ ignore = IgnoringFilter()
 class ZODBUpdateTests(unittest.TestCase):
 
     def setUp(self):
-        zodbupdate.analyze.logger.addFilter(ignore)
+        zodbupdate.update.logger.addFilter(ignore)
 
         sys.modules['module1'] =  types.ModuleType('module1')
         class Factory(persistent.Persistent):
@@ -58,7 +58,7 @@ class ZODBUpdateTests(unittest.TestCase):
         self.db.close()
 
         self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
-        updater = zodbupdate.analyze.Updater(self.storage, **args)
+        updater = zodbupdate.update.Updater(self.storage, **args)
         updater()
         self.storage.close()
 
@@ -69,7 +69,7 @@ class ZODBUpdateTests(unittest.TestCase):
         return updater
 
     def tearDown(self):
-        zodbupdate.analyze.logger.removeFilter(ignore)
+        zodbupdate.update.logger.removeFilter(ignore)
         del sys.modules['module1']
 
         self.db.close()
@@ -80,7 +80,7 @@ class ZODBUpdateTests(unittest.TestCase):
 
     def test_factory_missing(self):
         # Create a ZODB with an object referencing a factory, then 
-        # remove the factory and analyze the ZODB.
+        # remove the factory and update the ZODB.
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
         del sys.modules['module1'].Factory
@@ -89,7 +89,7 @@ class ZODBUpdateTests(unittest.TestCase):
 
     def test_factory_ignore_missing(self):
         # Create a ZODB with an object referencing a factory, then 
-        # remove the factory and analyze the ZODB.
+        # remove the factory and update the ZODB.
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
         del sys.modules['module1'].Factory
