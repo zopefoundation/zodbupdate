@@ -17,7 +17,7 @@ import ZODB.FileStorage
 import logging
 import optparse
 import sys
-import zodbupgrade.analyze
+import zodbupdate.analyze
 
 
 parser = optparse.OptionParser(
@@ -68,9 +68,9 @@ def main():
         level = logging.INFO
     logging.getLogger().addHandler(logging.StreamHandler())
     logging.getLogger().setLevel(level)
-    logging.getLogger('zodbupgrade').addFilter(duplicate_filter)
+    logging.getLogger('zodbupdate').addFilter(duplicate_filter)
 
-    updater = zodbupgrade.analyze.Updater(storage,
+    updater = zodbupdate.analyze.Updater(storage,
                                           dry=options.dry_run,
                                           ignore_missing=options.ignore_missing)
     try:

@@ -21,9 +21,9 @@ import pickle
 import pickletools
 import sys
 import transaction
-import zodbupgrade.picklefilter
+import zodbupdate.picklefilter
 
-logger = logging.getLogger('zodbupgrade')
+logger = logging.getLogger('zodbupdate')
 
 
 class Updater(object):
@@ -38,7 +38,7 @@ class Updater(object):
     def __call__(self):
         t = transaction.Transaction()
         self.storage.tpc_begin(t)
-        t.note('Updated factory references using `zodbupgrade`.')
+        t.note('Updated factory references using `zodbupdate`.')
 
         for oid, serial, current in self.records:
             new = self.update_record(current)
@@ -69,7 +69,7 @@ class Updater(object):
         for i in range(2):
             # ZODB data records consist of two concatenated pickles, so the
             # following needs to be done twice:
-            new += zodbupgrade.picklefilter.filter(
+            new += zodbupdate.picklefilter.filter(
                 self.update_operation, old)
         return new
 

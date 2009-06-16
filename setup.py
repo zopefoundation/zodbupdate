@@ -16,10 +16,10 @@ from setuptools import setup, find_packages
 
 read = lambda x:open(x).read()
 
-setup(name='zodbupgrade',
+setup(name='zodbupdate',
       author='Zope Developers',
       author_email='zodb-dev@zope.org',
-      url='http://www.python.org/pypi/zodbupgrade',
+      url='http://www.python.org/pypi/zodbupdate',
       license='ZPL 2.1',
       description=
         'Update ZODB class references for moved or renamed classes.',
@@ -39,4 +39,4 @@ setup(name='zodbupgrade',
       ],
       entry_points = dict(
         console_scripts =
-            ['zodbupgrade = zodbupgrade.main:main']))
+            ['zodbupdate = zodbupdate.main:main']))

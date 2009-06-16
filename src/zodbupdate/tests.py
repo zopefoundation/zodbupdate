@@ -24,8 +24,8 @@ import tempfile
 import transaction
 import types
 import unittest
-import zodbupgrade.analyze
-import zodbupgrade.picklefilter
+import zodbupdate.analyze
+import zodbupdate.picklefilter
 
 
 class IgnoringFilter(object):
@@ -36,10 +36,10 @@ class IgnoringFilter(object):
 ignore = IgnoringFilter()
 
 
-class ZODBUpgradeTests(unittest.TestCase):
+class ZODBUpdateTests(unittest.TestCase):
 
     def setUp(self):
-        zodbupgrade.analyze.logger.addFilter(ignore)
+        zodbupdate.analyze.logger.addFilter(ignore)
 
         sys.modules['module1'] =  types.ModuleType('module1')
         class Factory(persistent.Persistent):
@@ -58,7 +58,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         self.db.close()
 
         self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
-        updater = zodbupgrade.analyze.Updater(self.storage, **args)
+        updater = zodbupdate.analyze.Updater(self.storage, **args)
         updater()
         self.storage.close()
 
@@ -69,7 +69,7 @@ class ZODBUpgradeTests(unittest.TestCase):
         return updater
 
     def tearDown(self):
-        zodbupgrade.analyze.logger.removeFilter(ignore)
+        zodbupdate.analyze.logger.removeFilter(ignore)
         del sys.modules['module1']
 
         self.db.close()
@@ -177,7 +177,7 @@ class PickleFilterTests(unittest.TestCase):
     def assertArgCode(self, result, code, arg):
         self.assertEquals(
             result,
-            zodbupgrade.picklefilter.to_pickle_chunk(code, arg))
+            zodbupdate.picklefilter.to_pickle_chunk(code, arg))
 
     def test_sanity_check(self):
         # Check binary compatibility on simple "real" pickle
@@ -352,6 +352,6 @@ class PickleFilterTests(unittest.TestCase):
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(ZODBUpgradeTests))
+    suite.addTest(unittest.makeSuite(ZODBUpdateTests))
     suite.addTest(unittest.makeSuite(PickleFilterTests))
     return suite

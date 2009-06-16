@@ -1,6 +1,6 @@
 ===============================================================
-zodbupgrade - Upgrade existing databases to match your software
-===============================================================
+zodbupdate - Update existing databases to match your software
+=============================================================
 
 This package provides a tool that automatically identifies and updates
 references from persistent objects to classes that are in the process of being
@@ -18,16 +18,16 @@ Having run this tool, you are then free to delete the old code.
 Usage
 =====
 
-Installing the egg of this tool provides a console script `zodbupgrade` which
+Installing the egg of this tool provides a console script `zodbupdate` which
 you can call giving either a FileStorage filename or a configuration file
 defining a storage::
 
-    $ zodbupgrade -f Data.fs
-    $ zodbupgrade -c zodb.conf
+    $ zodbupdate -f Data.fs
+    $ zodbupdate -c zodb.conf
 
 Detailed usage information is available:
 
-    $ zodbupgrade -h
+    $ zodbupdate -h
 
 Custom software/eggs
 --------------------
@@ -40,14 +40,14 @@ If you are using buildout, installing can be done using the egg recipe with
 this configuration::
 
     [buildout]
-    parts += zodbupgrade
+    parts += zodbupdate
 
-    [zodbupgrade]
+    [zodbupdate]
     recipe = zc.recipe.eggs
-    eggs = zodbupgrade
+    eggs = zodbupdate
         <list additional eggs here>
 
-If you do not install `zodbupgrade` together with the necessary software it
+If you do not install `zodbupdate` together with the necessary software it
 will report missing classes and not touch your database.
 
 Non-FileStorage configurations
@@ -62,6 +62,6 @@ to a ZEO server by providing a config file `zeo.conf`::
         storage 1
     </zeoclient>
 
-And then running `zodbupgrade` using:
+And then running `zodbupdate` using:
 
-    $ zodbupgrade -c zeo.conf
+    $ zodbupdate -c zeo.conf
