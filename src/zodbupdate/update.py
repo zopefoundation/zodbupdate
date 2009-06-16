@@ -34,6 +34,7 @@ class Updater(object):
         self.dry = dry
         self.storage = storage
         self.missing = set()
+        self.renames = {}
 
     def __call__(self):
         t = transaction.Transaction()
@@ -83,7 +84,10 @@ class Updater(object):
         if code not in 'ci':
             return
 
-        # XXX Handle missing factories
+        if arg in self.renames:
+            # XXX missing testcase
+            return code, self.renames[arg]
+
         factory_module, factory_name = arg.split(' ')
         try:
             module = __import__(factory_module, globals(), {}, [factory_name])
@@ -111,6 +115,7 @@ class Updater(object):
                 "can't check canonical location" % factory)
             return
 
-        # XXX Log for later reuse
         new_arg = '%s %s' % (factory.__module__, factory.__name__)
+        if new_arg != arg:
+            self.renames[arg] = new_arg
         return code, new_arg

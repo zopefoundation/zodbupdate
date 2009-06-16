@@ -28,10 +28,14 @@ parser.add_option("-c", "--config",
                   help="load storage from config file")
 parser.add_option("-n", "--dry-run", action="store_true",
                   help="perform a trial run with no changes made")
-parser.add_option("--ignore-missing", action="store_true",
+parser.add_option("-i", "--ignore-missing", action="store_true",
                   help="update database even if classes are missing")
+parser.add_option("-s", "--save-renames",
+                  help="save automatically determined rename rules to file")
 parser.add_option("-q", "--quiet", action="store_true",
                   help="suppress non-error messages")
+parser.add_option("-v", "--verbose", action="store_true",
+                  help="more verbose output")
 
 class DuplicateFilter(object):
 
@@ -50,6 +54,17 @@ duplicate_filter = DuplicateFilter()
 def main():
     options, args = parser.parse_args()
 
+    if options.quiet:
+        level = logging.ERROR
+    elif options.verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.getLogger().addHandler(logging.StreamHandler())
+    logging.getLogger().setLevel(level)
+    logging.getLogger('zodbupdate').addFilter(duplicate_filter)
+
     if options.file and options.config:
         raise SystemExit(
             'Exactly one of --file or --config must be given.')
@@ -62,18 +77,17 @@ def main():
         raise SystemExit(
             'Exactly one of --file or --config must be given.')
 
-    if options.quiet:
-        level = logging.ERROR
-    else:
-        level = logging.INFO
-    logging.getLogger().addHandler(logging.StreamHandler())
-    logging.getLogger().setLevel(level)
-    logging.getLogger('zodbupdate').addFilter(duplicate_filter)
-
-    updater = zodbupdate.update.Updater(storage,
-                                          dry=options.dry_run,
-                                          ignore_missing=options.ignore_missing)
+    updater = zodbupdate.update.Updater(
+        storage, dry=options.dry_run, ignore_missing=options.ignore_missing)
     try:
         updater()
     except Exception, e:
+        logging.debug('An error occured', exc_info=True)
         logging.error('Stopped processing, due to: %s' % e)
+        raise SystemExit()
+
+    if options.save_renames:
+        f = open(options.save_renames, 'w')
+        for key, value in sorted(updater.renames.items()):
+            f.write('%s,%s\n' % (key, value))
+        f.close()
