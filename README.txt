@@ -43,7 +43,7 @@ this configuration::
     parts += zodbupdate
 
     [zodbupdate]
-    recipe = zc.recipe.eggs
+    recipe = zc.recipe.egg
     eggs = zodbupdate
         <list additional eggs here>
 
