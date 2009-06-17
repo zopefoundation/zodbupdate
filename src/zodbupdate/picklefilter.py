@@ -61,10 +61,16 @@ noargs = [pickle.EMPTY_TUPLE,
           pickle.NEWTRUE,
           pickle.NEWFALSE]
 
+def _pickle_int(arg):
+    if type(arg) is int:
+        return reprn(arg)
+    else:
+        return '0%s\n' % int(arg)
+        
 generators = {
     pickle.BINFLOAT: lambda arg:struct.pack('>d', arg),
     pickle.FLOAT: reprn,
-    pickle.INT: lambda arg:reprn(arg) if type(arg) is int else '0%s\n' % int(arg),
+    pickle.INT: _pickle_int,
     pickle.BININT: packi,
     pickle.BININT1: chr,
     pickle.LONG: reprn,
