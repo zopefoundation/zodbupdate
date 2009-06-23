@@ -26,8 +26,6 @@ setup(name='zodbupdate',
       long_description=(
         read('README.txt')
         + '\n' +
-        read('TODO.txt')
-        + '\n' +
         read('CHANGES.txt')),
       version='0.2dev',
       package_dir={'': 'src'},
