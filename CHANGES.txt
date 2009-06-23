@@ -1,7 +1,7 @@
 Changes
 =======
 
-0.2 (unreleased)
+0.2 (2009-06-23)
 ----------------
 
 - Add option to store the rename rules into a file.
