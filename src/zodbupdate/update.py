@@ -29,12 +29,14 @@ logger = logging.getLogger('zodbupdate')
 class Updater(object):
     """Update class references for all current objects in a storage."""
 
-    def __init__(self, storage, dry=False, ignore_missing=False):
+    def __init__(self, storage, dry=False, ignore_missing=False, renames=None):
         self.ignore_missing = ignore_missing
         self.dry = dry
         self.storage = storage
         self.missing = set()
-        self.renames = {}
+        self.renames = renames or {}
+
+        self.changes = 0
 
     def __call__(self):
         t = transaction.Transaction()
@@ -43,13 +45,17 @@ class Updater(object):
 
         for oid, serial, current in self.records:
             new = self.update_record(current)
-            if new == current:
+            if new == current.getvalue():
                 continue
             logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
             self.storage.store(oid, serial, new, '', t)
+            self.changes += 1
 
         if self.dry:
             logger.info('Dry run selected, aborting transaction.')
+            self.storage.tpc_abort(t)
+        elif not self.changes:
+            logger.info('No changes, aborting transaction.')
             self.storage.tpc_abort(t)
         else:
             logger.info('Committing changes.')
@@ -85,7 +91,6 @@ class Updater(object):
             return
 
         if arg in self.renames:
-            # XXX missing testcase
             return code, self.renames[arg]
 
         factory_module, factory_name = arg.split(' ')

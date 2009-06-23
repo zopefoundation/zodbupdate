@@ -29,7 +29,7 @@ import zodbupdate.picklefilter
 
 
 class IgnoringFilter(object):
-
+    # Do not spit out any logging during testing.
     def filter(self, record):
         return False
 
@@ -94,13 +94,13 @@ class ZODBUpdateTests(unittest.TestCase):
         transaction.commit()
         del sys.modules['module1'].Factory
 
-        self.update(ignore_missing=True)
+        updater = self.update(ignore_missing=True)
 
         self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
         self.assert_(isinstance(self.root['test'],
                                 ZODB.broken.PersistentBroken))
-
+        self.assertEquals({}, updater.renames)
 
     def test_factory_renamed(self):
         # Create a ZODB with an object referencing a factory, then 
@@ -109,37 +109,36 @@ class ZODBUpdateTests(unittest.TestCase):
         # then still be able to access the object.
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
-        self.db.close()
 
         sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
-        self.update()
+        updater = self.update()
 
         self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertEquals('module1', self.root['test'].__class__.__module__)
         self.assertEquals('NewFactory', self.root['test'].__class__.__name__)
+        self.assertEquals({'module1 Factory': 'module1 NewFactory'}, updater.renames)
 
     def test_factory_renamed_dryrun(self):
         # Run an update with "dy run" option and see that the pickle is
         # not updated.
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
-        self.db.close()
 
         sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
-        self.update(dry=True)
-
+        updater = self.update(dry=True)
         self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals({'module1 Factory': 'module1 NewFactory'}, updater.renames)
 
-        self.update(dry=False)
-
+        updater = self.update(dry=False)
         self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals({'module1 Factory': 'module1 NewFactory'}, updater.renames)
 
     def test_factory_registered_with_copy_reg(self):
         # Factories registered with copy_reg.pickle loose their __name__.
@@ -162,10 +161,51 @@ class ZODBUpdateTests(unittest.TestCase):
         self.root['test'] = sys.modules['module1'].Anonymous
         transaction.commit()
 
-        self.update()
+        updater = self.update()
 
         self.assertEquals('module1', self.root['test'].__class__.__module__)
         self.assertEquals('AnonymousFactory', self.root['test'].__class__.__name__)
+        self.assertEquals({}, updater.renames)
+
+    def test_no_transaction_if_no_changes(self):
+        # If an update run doesn't produce any changes it won't commit the
+        # transaction to avoid superfluous clutter in the DB.
+        last = self.storage.lastTransaction()
+        updater = self.update()
+        self.assertEquals(0, updater.changes)
+        self.assertEquals(last, self.storage.lastTransaction())
+        self.assertEquals({}, updater.renames)
+
+    def test_loaded_renames_override_automatic(self):
+        # Same as test_factory_renamed, but provide a pre-defined rename
+        # dictionary whose rules will result in a different class being picked
+        # than what automatic detection would have done.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        updater = self.update(renames={'module1 Factory': 'module2 OtherFactory'})
+
+        self.assertEquals('cmodule2\nOtherFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals({'module1 Factory': 'module2 OtherFactory'}, updater.renames)
+
+
+    def test_loaded_renames_override_missing(self):
+        # Same as test_factory_missing, but provide a pre-defined rename
+        # dictionary whose rules will result in a different class being picked
+        # than what automatic detection would have done.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        del sys.modules['module1'].Factory
+        updater = self.update(renames={'module1 Factory': 'module2 OtherFactory'})
+
+        self.assertEquals('cmodule2\nOtherFactory\nq\x01.}q\x02.',
+                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals({'module1 Factory': 'module2 OtherFactory'}, updater.renames)
 
 
 class PickleFilterTests(unittest.TestCase):

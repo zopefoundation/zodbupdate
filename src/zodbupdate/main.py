@@ -16,6 +16,8 @@ import ZODB.config
 import ZODB.FileStorage
 import logging
 import optparse
+import pkg_resources
+import pprint
 import sys
 import zodbupdate.update
 
@@ -77,8 +79,17 @@ def main():
         raise SystemExit(
             'Exactly one of --file or --config must be given.')
 
+    rename_rules = {}
+    for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
+        rules = entry_point.load()
+        rename_rules.update(rules)
+        logging.debug('Loaded %s rules from %s:%s' %
+                      (len(rules), entry_point.module_name, entry_point.name))
+
     updater = zodbupdate.update.Updater(
-        storage, dry=options.dry_run, ignore_missing=options.ignore_missing)
+        storage, dry=options.dry_run,
+        ignore_missing=options.ignore_missing,
+        renames=rename_rules)
     try:
         updater()
     except Exception, e:
@@ -88,6 +99,5 @@ def main():
 
     if options.save_renames:
         f = open(options.save_renames, 'w')
-        for key, value in sorted(updater.renames.items()):
-            f.write('%s,%s\n' % (key, value))
+        f.write('renames = %s' % pprint.pformat(updater.renames))
         f.close()
