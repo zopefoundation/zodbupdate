@@ -65,3 +65,20 @@ to a ZEO server by providing a config file `zeo.conf`::
 And then running `zodbupdate` using:
 
     $ zodbupdate -c zeo.conf
+
+
+Pre-defined rename rules
+------------------------
+
+Rename rules can be defined using entry points::
+
+    setup(...
+          entry_points = """
+          [zodbupdate]
+          renames = mypackage.mymodule:rename_dict
+          """)
+
+Rename rules are dictionaries that map old class names to new class names::
+
+    renames = {'mypackage.mymodule ClassName':
+               'otherpackage.othermodule OtherClass'}
