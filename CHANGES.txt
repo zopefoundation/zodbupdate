@@ -4,8 +4,26 @@ Changes
 0.2 (unreleased)
 ----------------
 
-- ...
+- Add option to store the rename rules into a file.
 
+- Don't commit transactions that have no changes.
+
+- Load rename rules from entry points ``zodbupdate``.
+
+- Compatibility with Python 2.4
+
+- Rename from ``zodbupgrade`` to ``zodbupdate``.
+
+- Add 'verbose' option.
+
+- Improve logging.
+
+- Suppress duplicate log messages (e.g. if the same class is missing in
+  multiple objects).
+
+- Improve the updating process: rewrite pickle opcodes instead of blindly
+  touching a class. This also allows updating pickles that can't be unpickled
+  due to missing classes.
 
 0.1 (2009-06-08)
 ----------------
