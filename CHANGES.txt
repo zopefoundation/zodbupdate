@@ -4,7 +4,8 @@ Changes
 0.3 (unreleased)
 ----------------
 
-- ...
+- Remove superfluous code that tried to prevent commits when no changes
+  happened: ZODB does this all by itself already.
 
 0.2 (2009-06-23)
 ----------------

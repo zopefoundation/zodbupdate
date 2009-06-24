@@ -36,8 +36,6 @@ class Updater(object):
         self.missing = set()
         self.renames = renames or {}
 
-        self.changes = 0
-
     def __call__(self):
         t = transaction.Transaction()
         self.storage.tpc_begin(t)
@@ -49,13 +47,9 @@ class Updater(object):
                 continue
             logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
             self.storage.store(oid, serial, new, '', t)
-            self.changes += 1
 
         if self.dry:
             logger.info('Dry run selected, aborting transaction.')
-            self.storage.tpc_abort(t)
-        elif not self.changes:
-            logger.info('No changes, aborting transaction.')
             self.storage.tpc_abort(t)
         else:
             logger.info('Committing changes.')

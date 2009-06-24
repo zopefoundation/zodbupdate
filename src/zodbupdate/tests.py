@@ -172,7 +172,6 @@ class ZODBUpdateTests(unittest.TestCase):
         # transaction to avoid superfluous clutter in the DB.
         last = self.storage.lastTransaction()
         updater = self.update()
-        self.assertEquals(0, updater.changes)
         self.assertEquals(last, self.storage.lastTransaction())
         self.assertEquals({}, updater.renames)
 
