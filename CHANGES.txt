@@ -1,7 +1,7 @@
 Changes
 =======
 
-0.3 (unreleased)
+0.3 (2010-02-02)
 ----------------
 
 - Unplickle and re-pickle the code to rename references to moved classes.
