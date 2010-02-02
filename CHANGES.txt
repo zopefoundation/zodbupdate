@@ -4,6 +4,13 @@ Changes
 0.3 (unreleased)
 ----------------
 
+- Unplickle and re-pickle the code to rename references to moved classes.
+  This make the script works on database created with older versions of
+  ZODB.
+
+- If you are working directly with a FileStorage, POSKeyError are reported
+  but non-fatal.
+
 - Remove superfluous code that tried to prevent commits when no changes
   happened: ZODB does this all by itself already.
 

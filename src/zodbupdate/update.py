@@ -13,108 +13,99 @@
 ##############################################################################
 
 from ZODB.DB import DB
-import StringIO
+from ZODB.FileStorage import FileStorage
+from struct import pack, unpack
+import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
+import cStringIO
 import logging
 import pickle
 import pickletools
 import sys
 import transaction
-import zodbupdate.picklefilter
+import zodbupdate.serialize
 
 logger = logging.getLogger('zodbupdate')
+
+TRANSACTION_COUNT = 100000
 
 
 class Updater(object):
     """Update class references for all current objects in a storage."""
 
-    def __init__(self, storage, dry=False, ignore_missing=False, renames=None):
-        self.ignore_missing = ignore_missing
+    def __init__(self, storage, dry=False, renames=None):
         self.dry = dry
         self.storage = storage
-        self.missing = set()
-        self.renames = renames or {}
+        self.processor = zodbupdate.serialize.ObjectRenamer(renames or {})
 
-    def __call__(self):
+    def __new_transaction(self):
         t = transaction.Transaction()
         self.storage.tpc_begin(t)
         t.note('Updated factory references using `zodbupdate`.')
+        return t
 
-        for oid, serial, current in self.records:
-            new = self.update_record(current)
-            if new == current.getvalue():
-                continue
-            logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
-            self.storage.store(oid, serial, new, '', t)
-
-        if self.dry:
-            logger.info('Dry run selected, aborting transaction.')
+    def __commit_transaction(self, t, changed):
+        if self.dry or not changed:
+            logger.info('Dry run selected or no changes, aborting transaction.')
             self.storage.tpc_abort(t)
         else:
             logger.info('Committing changes.')
             self.storage.tpc_vote(t)
             self.storage.tpc_finish(t)
 
+    def __call__(self):
+        count = 0
+        t = self.__new_transaction()
+
+        for oid, serial, current in self.records:
+            new = self.processor.rename(current)
+            if new is None:
+                continue
+
+            logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
+            self.storage.store(oid, serial, new.getvalue(), '', t)
+            count += 1
+
+            if count > TRANSACTION_COUNT:
+                count = 0
+                self.__commit_transaction(t, True)
+                t = self.__new_transaction()
+
+        self.__commit_transaction(t, count != 0)
+
+
     @property
     def records(self):
-        next = None
-        while True:
-            oid, tid, data, next = self.storage.record_iternext(next)
-            yield oid, tid, StringIO.StringIO(data)
-            if next is None:
-                break
+        if not isinstance(self.storage, FileStorage):
+            # Only FileStorage as _index (this is not an API defined attribute)
+            next = None
+            while True:
+                oid, tid, data, next = self.storage.record_iternext(next)
+                yield oid, tid, cStringIO.StringIO(data)
+                if next is None:
+                    break
+        else:
+            index = self.storage._index
+            next_oid = None
 
-    def update_record(self, old):
-        new = ''
-        for i in range(2):
-            # ZODB data records consist of two concatenated pickles, so the
-            # following needs to be done twice:
-            new += zodbupdate.picklefilter.filter(
-                self.update_operation, old)
-        return new
+            while True:
+                oid = index.minKey(next_oid)
+                try:
+                    data, tid = self.storage.load(oid, "")
+                except ZODB.POSException.POSKeyError, e:
+                    logger.error(
+                        u'Warning: Jumping record %s, '
+                        u'referencing missing key in database: %s' %
+                        (ZODB.utils.oid_repr(oid), str(e)))
+                else:
+                    yield  oid, tid, cStringIO.StringIO(data)
 
-    def update_operation(self, code, arg):
-        """Check a pickle operation for moved or missing factory references.
+                oid_as_long, = unpack(">Q", oid)
+                next_oid = pack(">Q", oid_as_long + 1)
+                try:
+                    next_oid = index.minKey(next_oid)
+                except ValueError:
+                    # No more records
+                    break
 
-        Returns an updated (code, arg) tuple using the canonical reference for the
-        factory as would be created if the pickle was unpickled and re-pickled.
-
-        """
-        if code not in 'ci':
-            return
-
-        if arg in self.renames:
-            return code, self.renames[arg]
-
-        factory_module, factory_name = arg.split(' ')
-        try:
-            module = __import__(factory_module, globals(), {}, [factory_name])
-            factory = getattr(module, factory_name)
-        except (AttributeError, ImportError):
-            name = '%s.%s' % (factory_module, factory_name)
-            message = 'Missing factory: %s' % name
-            logger.info(message)
-            self.missing.add(name)
-            if self.ignore_missing:
-                return
-            raise ValueError(message)
-
-        if not hasattr(factory, '__name__'):
-            logger.warn(
-                "factory %r does not have __name__: "
-                "can't check canonical location" % factory)
-            return
-        if not hasattr(factory, '__module__'):
-            # TODO: This case isn't covered with a test. I just
-            # couldn't provoke a factory to not have a __module__ but
-            # users reported this issue to me.
-            logger.warn(
-                "factory %r does not have __module__: "
-                "can't check canonical location" % factory)
-            return
-
-        new_arg = '%s %s' % (factory.__module__, factory.__name__)
-        if new_arg != arg:
-            self.renames[arg] = new_arg
-        return code, new_arg

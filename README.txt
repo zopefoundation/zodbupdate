@@ -9,9 +9,10 @@ moved from one module to another and/or being renamed.
 If a class is being moved or renamed, you need to update all references from
 your database to the new name before finally deleting the old code.
 
-This tool looks through all current objects of your database, identifies
-moved/renamed classes and `touches` objects accordingly. It creates a single
-transaction that contains the update of your database.
+This tool looks through all current objects of your database,
+identifies moved/renamed classes and `touches` objects accordingly. It
+creates transactions that contains the update of your database (one
+transaction every 100000 records).
 
 Having run this tool, you are then free to delete the old code.
 
