@@ -36,6 +36,11 @@ parser.add_option("-q", "--quiet", action="store_true",
                   help="suppress non-error messages")
 parser.add_option("-v", "--verbose", action="store_true",
                   help="more verbose output")
+parser.add_option("-o", "--oid",
+                  help="start with provided oid in hex format, ex: 0xaa1203")
+parser.add_option("-d", "--debug", action="store_true",
+                  help="post mortem pdb on failure")
+
 
 class DuplicateFilter(object):
 
@@ -77,6 +82,10 @@ def main():
         raise SystemExit(
             u'Exactly one of --file or --config must be given.')
 
+    start_at = '0x00'
+    if options.oid:
+        start_at = options.oid
+
     rename_rules = {}
     for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
         rules = entry_point.load()
@@ -85,8 +94,11 @@ def main():
                       (len(rules), entry_point.module_name, entry_point.name))
 
     updater = zodbupdate.update.Updater(
-        storage, dry=options.dry_run,
-        renames=rename_rules)
+        storage,
+        dry=options.dry_run,
+        renames=rename_rules,
+        start_at=start_at,
+        debug=options.debug)
 
     try:
         updater()

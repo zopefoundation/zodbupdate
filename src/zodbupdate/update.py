@@ -34,10 +34,13 @@ TRANSACTION_COUNT = 100000
 class Updater(object):
     """Update class references for all current objects in a storage."""
 
-    def __init__(self, storage, dry=False, renames=None):
+    def __init__(self, storage, dry=False, renames=None,
+                 start_at='0x00', debug=False):
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(renames or {})
+        self.start_at = start_at
+        self.debug = debug
 
     def __new_transaction(self):
         t = transaction.Transaction()
@@ -55,31 +58,39 @@ class Updater(object):
             self.storage.tpc_finish(t)
 
     def __call__(self):
-        count = 0
-        t = self.__new_transaction()
+        try:
+            count = 0
+            t = self.__new_transaction()
 
-        for oid, serial, current in self.records:
-            new = self.processor.rename(current)
-            if new is None:
-                continue
+            for oid, serial, current in self.records:
+                new = self.processor.rename(current)
+                if new is None:
+                    continue
 
-            logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
-            self.storage.store(oid, serial, new.getvalue(), '', t)
-            count += 1
+                logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
+                self.storage.store(oid, serial, new.getvalue(), '', t)
+                count += 1
 
-            if count > TRANSACTION_COUNT:
-                count = 0
-                self.__commit_transaction(t, True)
-                t = self.__new_transaction()
+                if count > TRANSACTION_COUNT:
+                    count = 0
+                    self.__commit_transaction(t, True)
+                    t = self.__new_transaction()
 
-        self.__commit_transaction(t, count != 0)
-
+            self.__commit_transaction(t, count != 0)
+        except (Exception,), e:
+            if not self.debug:
+                raise e
+            import sys, pdb
+            (type, value, traceback) = sys.exc_info()
+            pdb.post_mortem(traceback)
+            del traceback
+            raise e
 
     @property
     def records(self):
+        next = ZODB.utils.repr_to_oid(self.start_at)
         if not isinstance(self.storage, FileStorage):
             # Only FileStorage as _index (this is not an API defined attribute)
-            next = None
             while True:
                 oid, tid, data, next = self.storage.record_iternext(next)
                 yield oid, tid, cStringIO.StringIO(data)
@@ -87,10 +98,9 @@ class Updater(object):
                     break
         else:
             index = self.storage._index
-            next_oid = None
 
             while True:
-                oid = index.minKey(next_oid)
+                oid = index.minKey(next)
                 try:
                     data, tid = self.storage.load(oid, "")
                 except ZODB.POSException.POSKeyError, e:
@@ -102,9 +112,9 @@ class Updater(object):
                     yield  oid, tid, cStringIO.StringIO(data)
 
                 oid_as_long, = unpack(">Q", oid)
-                next_oid = pack(">Q", oid_as_long + 1)
+                next = pack(">Q", oid_as_long + 1)
                 try:
-                    next_oid = index.minKey(next_oid)
+                    next = index.minKey(next)
                 except ValueError:
                     # No more records
                     break
