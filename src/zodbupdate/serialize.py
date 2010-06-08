@@ -36,11 +36,7 @@ class NullIterator:
         raise StopIteration
 
 
-class ZODBBroken(Broken):
-    """Extend ZODB Broken to work with broken objects that doesn't
-    have any __Broken_newargs__ sets (which happens if their __new__
-    method is not called).
-    """
+class IterableClass(type):
 
     def __iter__(self):
         """Define a empty iterator to fix unpickling of missing
@@ -48,6 +44,14 @@ class ZODBBroken(Broken):
         pickled object.
         """
         return NullIterator()
+
+
+class ZODBBroken(Broken):
+    """Extend ZODB Broken to work with broken objects that doesn't
+    have any __Broken_newargs__ sets (which happens if their __new__
+    method is not called).
+    """
+    __metaclass__ = IterableClass
 
     def __reduce__(self):
         """We pickle broken objects in hope of being able to fix them later.
