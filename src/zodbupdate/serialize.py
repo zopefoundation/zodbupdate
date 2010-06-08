@@ -12,7 +12,7 @@
 #
 ##############################################################################
 
-from ZODB.broken import find_global, Broken
+from ZODB.broken import find_global, Broken, rebuild
 import cPickle
 import cStringIO
 import logging
@@ -24,6 +24,21 @@ logger = logging.getLogger('zodbupdate')
 def isbroken(symb):
     return isinstance(symb, types.TypeType) and Broken in symb.__mro__
 
+
+class ZODBBroken(Broken):
+    """Extend ZODB Broken to work with broken objects that doesn't
+    have any __Broken_newargs__ sets. This seems to happens with Zope2
+    Persistence objects.
+    """
+
+    def __reduce__(self):
+        """We pickle broken objects in hope of being able to fix them later.
+        """
+        return (rebuild,
+                ((self.__class__.__module__, self.__class__.__name__)
+                 + getattr(self, '__Broken_newargs__', ())),
+                self.__Broken_state__,
+                )
 
 class ZODBReference:
     """Class to remenber reference we don't want to touch.
@@ -83,7 +98,7 @@ class ObjectRenamer:
 
         Using ZODB find_global let us manage missing classes.
         """
-        return find_global(*self.__update_symb(klass_info))
+        return find_global(*self.__update_symb(klass_info), Broken=ZODBBroken)
 
     def __persistent_load(self, reference):
         """Load a persistent reference. The reference might changed
