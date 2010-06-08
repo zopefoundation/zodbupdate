@@ -76,7 +76,7 @@ class ObjectRenamer:
             self.__changed = True
             return self.__changes[symb_info]
         else:
-            symb = find_global(*symb_info)
+            symb = find_global(*symb_info, Broken=ZODBBroken)
             if isbroken(symb):
                 logger.warning(u'Warning: Missing factory for %s' %
                                u' '.join(symb_info))
