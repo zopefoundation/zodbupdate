@@ -27,8 +27,8 @@ def isbroken(symb):
 
 class ZODBBroken(Broken):
     """Extend ZODB Broken to work with broken objects that doesn't
-    have any __Broken_newargs__ sets. This seems to happens with Zope2
-    Persistence objects.
+    have any __Broken_newargs__ sets (which happens if their __new__
+    method is not called).
     """
 
     def __reduce__(self):
@@ -37,8 +37,8 @@ class ZODBBroken(Broken):
         return (rebuild,
                 ((self.__class__.__module__, self.__class__.__name__)
                  + getattr(self, '__Broken_newargs__', ())),
-                self.__Broken_state__,
-                )
+                self.__Broken_state__)
+
 
 class ZODBReference:
     """Class to remenber reference we don't want to touch.
