@@ -20,26 +20,38 @@ import pkg_resources
 import pprint
 import sys
 import zodbupdate.update
+import zodbupdate.utils
 
 
 parser = optparse.OptionParser(
     description="Updates all references to classes to their canonical location.")
-parser.add_option("-f", "--file",
-                  help="load FileStorage")
-parser.add_option("-c", "--config",
-                  help="load storage from config file")
-parser.add_option("-n", "--dry-run", action="store_true",
-                  help="perform a trial run with no changes made")
-parser.add_option("-s", "--save-renames",
-                  help="save automatically determined rename rules to file")
-parser.add_option("-q", "--quiet", action="store_true",
-                  help="suppress non-error messages")
-parser.add_option("-v", "--verbose", action="store_true",
-                  help="more verbose output")
-parser.add_option("-o", "--oid",
-                  help="start with provided oid in hex format, ex: 0xaa1203")
-parser.add_option("-d", "--debug", action="store_true",
-                  help="post mortem pdb on failure")
+parser.add_option(
+    "-f", "--file",
+    help="load FileStorage")
+parser.add_option(
+    "-c", "--config",
+    help="load storage from config file")
+parser.add_option(
+    "-n", "--dry-run", action="store_true",
+    help="perform a trial run with no changes made")
+parser.add_option(
+    "-s", "--save-renames",
+    help="save automatically determined rename rules to file")
+parser.add_option(
+    "-q", "--quiet", action="store_true",
+    help="suppress non-error messages")
+parser.add_option(
+    "-v", "--verbose", action="store_true",
+    help="more verbose output")
+parser.add_option(
+    "-o", "--oid",
+    help="start with provided oid in hex format, ex: 0xaa1203")
+parser.add_option(
+    "-d", "--debug", action="store_true",
+    help="post mortem pdb on failure")
+parser.add_option(
+    "-p", "--pickler", default="C",
+    help="chooser unpickler implementation C or Python (default C)")
 
 
 class DuplicateFilter(object):
@@ -58,6 +70,10 @@ duplicate_filter = DuplicateFilter()
 
 def main():
     options, args = parser.parse_args()
+
+    if options.pickler not in zodbupdate.utils.UNPICKLERS:
+        raise SystemExit(u'Invalid pickler chosen. Available picklers: %s' %
+                         ', '.join(zodbupdate.utils.UNPICKLERS))
 
     if options.quiet:
         level = logging.ERROR
@@ -98,7 +114,8 @@ def main():
         dry=options.dry_run,
         renames=rename_rules,
         start_at=start_at,
-        debug=options.debug)
+        debug=options.debug,
+        pickler_name=options.pickler)
 
     try:
         updater()

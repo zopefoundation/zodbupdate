@@ -12,11 +12,13 @@
 #
 ##############################################################################
 
-from ZODB.broken import find_global, Broken, rebuild
 import cPickle
 import cStringIO
 import logging
 import types
+
+from ZODB.broken import find_global, Broken, rebuild
+from zodbupdate import utils
 
 logger = logging.getLogger('zodbupdate')
 
@@ -25,7 +27,7 @@ def isbroken(symb):
     return isinstance(symb, types.TypeType) and Broken in symb.__mro__
 
 
-class NullIterator:
+class NullIterator(object):
     """An empty iterator that doesn't gives any result.
     """
 
@@ -62,7 +64,7 @@ class ZODBBroken(Broken):
                 self.__Broken_state__)
 
 
-class ZODBReference:
+class ZODBReference(object):
     """Class to remenber reference we don't want to touch.
     """
 
@@ -70,7 +72,7 @@ class ZODBReference:
         self.ref = ref
 
 
-class ObjectRenamer:
+class ObjectRenamer(object):
     """This load and save a ZODB record, modifying all references to
     renamed class according the given renaming rules:
 
@@ -81,12 +83,13 @@ class ObjectRenamer:
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes):
+    def __init__(self, changes, pickler_name='C'):
         self.__added = dict()
         self.__changes = dict()
         for old, new in changes.iteritems():
             self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
         self.__changed = False
+        self.__pickler_name = pickler_name
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -142,14 +145,12 @@ class ObjectRenamer:
                 return ZODBReference(['m', (database_name, oid, klass_info)])
         return ZODBReference(reference)
 
-    def __unpickler(self, pickle):
+    def __unpickler(self, input_file):
         """Create an unpickler with our custom global symbol loader
         and reference resolver.
         """
-        unpickler = cPickle.Unpickler(pickle)
-        unpickler.persistent_load = self.__persistent_load
-        unpickler.find_global = self.__find_global
-        return unpickler
+        return utils.UNPICKLERS[self.__pickler_name](
+            input_file, self.__persistent_load, self.__find_global)
 
     def __persistent_id(self, obj):
         """Save the given object as a reference only if it was a
@@ -159,11 +160,11 @@ class ObjectRenamer:
             return None
         return obj.ref
 
-    def __pickler(self, output):
+    def __pickler(self, output_file):
         """Create a pickler able to save to the given file, objects we
         loaded while paying attention to any reference we loaded.
         """
-        pickler = cPickle.Pickler(output, 1)
+        pickler = cPickle.Pickler(output_file, 1)
         pickler.persistent_id = self.__persistent_id
         return pickler
 
@@ -196,7 +197,9 @@ class ObjectRenamer:
 
         class_meta = self.__update_class_meta(class_meta)
 
-        if not self.__changed:
+        if not (self.__changed or
+                (hasattr(unpickler, 'need_repickle') and
+                 unpickler.need_repickle())):
             return None
 
         output_file = cStringIO.StringIO()

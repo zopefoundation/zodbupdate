@@ -35,10 +35,11 @@ class Updater(object):
     """Update class references for all current objects in a storage."""
 
     def __init__(self, storage, dry=False, renames=None,
-                 start_at='0x00', debug=False):
+                 start_at='0x00', debug=False, pickler_name='C'):
         self.dry = dry
         self.storage = storage
-        self.processor = zodbupdate.serialize.ObjectRenamer(renames or {})
+        self.processor = zodbupdate.serialize.ObjectRenamer(
+            renames or {}, pickler_name)
         self.start_at = start_at
         self.debug = debug
 
