@@ -87,7 +87,7 @@ Rename rules are dictionaries that map old class names to new class names::
                'otherpackage.othermodule OtherClass'}
 
 As soon as you have rules defined, you can already remove the old
-import location.
+import location mentioned in them.
 
 
 Packing
@@ -122,3 +122,7 @@ You have an another error
 
 We recommand to run zodbupdate with ``-v -d -p Python`` to get the
 maximum of information.
+
+If you are working on big storages, you can use the option ``-o`` to
+re-run `zodbupdate` at a failing record you previously encountered
+afterward.
