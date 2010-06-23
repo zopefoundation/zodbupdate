@@ -108,8 +108,8 @@ If you call `zodbupdate` with ``-f`` and the path to your Data.fs,
 records triggering those errors will be ignored.
 
 
-Your Data.fs is old and have been created with Zope 2 and you get strange errors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Your Data.fs is old, have been created with Zope 2 and you get strange errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Some special support for an old record format got removed from Python
 2.6. Running `zodbupdate` with the Python pickler (``-p Python``) will
