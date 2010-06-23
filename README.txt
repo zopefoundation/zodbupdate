@@ -16,6 +16,8 @@ transaction every 100000 records).
 
 Having run this tool, you are then free to delete the old code.
 
+.. contents::
+
 Usage
 =====
 
@@ -83,3 +85,40 @@ Rename rules are dictionaries that map old class names to new class names::
 
     renames = {'mypackage.mymodule ClassName':
                'otherpackage.othermodule OtherClass'}
+
+As soon as you have rules defined, you can already remove the old
+import location.
+
+
+Packing
+-------
+
+The option ``--pack`` will pack the storage on success. (You tell your
+users to use that option. If they never pack their storage, it is a good
+occasion).
+
+
+Problems and solutions
+----------------------
+
+Your Data.fs has POSKey errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+If you call `zodbupdate` with ``-f`` and the path to your Data.fs,
+records triggering those errors will be ignored.
+
+
+Your Data.fs is old and have been created with Zope 2 and you get strange errors
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Some special support for an old record format got removed from Python
+2.6. Running `zodbupdate` with the Python pickler (``-p Python``) will
+load those records and fix them.
+
+This will fix your Data.fs.
+
+You have an another error
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We recommand to run zodbupdate with ``-v -d -p Python`` to get the
+maximum of information.

@@ -12,13 +12,15 @@
 #
 ##############################################################################
 
-import ZODB.config
 import ZODB.FileStorage
+import ZODB.config
+import ZODB.serialize
 import logging
 import optparse
 import pkg_resources
 import pprint
 import sys
+import time
 import zodbupdate.update
 import zodbupdate.utils
 
@@ -52,6 +54,10 @@ parser.add_option(
 parser.add_option(
     "-p", "--pickler", default="C",
     help="chooser unpickler implementation C or Python (default C)")
+parser.add_option(
+    "--pack", action="store_true", dest="pack",
+    help="pack the storage when done. use in conjunction of -c if you have blobs storage")
+
 
 
 class DuplicateFilter(object):
@@ -134,5 +140,8 @@ def main():
         f = open(options.save_renames, 'w')
         f.write('renames = %s' % pprint.pformat(rename_rules))
         f.close()
+    if options.pack:
+        print 'Packing storage ...'
+        storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
 
