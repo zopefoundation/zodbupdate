@@ -1,10 +1,19 @@
 Changes
 =======
 
-0.4 (unreleased)
+0.4 (2010-07-14)
 ----------------
 
-- ...
+- Add an option to debug broken records.
+
+- Add an option to skip records.
+
+- Add an option to use Python unPickler instead of C one. This let you
+  debug records. As well Python unPickler let you update old ExtensionClass
+  records who had a special hack in the past.
+
+- Broken interfaces are well supported now (if you did alsoProvides with them).
+
 
 0.3 (2010-02-02)
 ----------------
