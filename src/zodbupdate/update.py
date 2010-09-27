@@ -64,11 +64,13 @@ class Updater(object):
             t = self.__new_transaction()
 
             for oid, serial, current in self.records:
+                logger.debug('Processing OID %s' % ZODB.utils.oid_repr(oid))
+
                 new = self.processor.rename(current)
                 if new is None:
                     continue
 
-                logger.debug('Updated %s' % ZODB.utils.oid_repr(oid))
+                logger.debug('Updated OID %s' % ZODB.utils.oid_repr(oid))
                 self.storage.store(oid, serial, new.getvalue(), '', t)
                 count += 1
 
@@ -119,4 +121,3 @@ class Updater(object):
                 except ValueError:
                     # No more records
                     break
-
