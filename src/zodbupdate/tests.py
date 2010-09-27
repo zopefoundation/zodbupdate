@@ -56,7 +56,7 @@ class ZODBUpdateTests(unittest.TestCase):
         sys.modules['module2'].OtherFactory = OtherFactory
         OtherFactory.__module__ = 'module2'
 
-        _, self.dbfile = tempfile.mkstemp()
+        self.tmphnd, self.dbfile = tempfile.mkstemp()
 
         self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
         self.db = ZODB.DB(self.storage)
@@ -64,7 +64,9 @@ class ZODBUpdateTests(unittest.TestCase):
         self.root = self.conn.root()
 
     def update(self, **args):
+        self.conn.close()
         self.db.close()
+        self.storage.close()
 
         self.storage = ZODB.FileStorage.FileStorage(self.dbfile)
         updater = zodbupdate.update.Updater(self.storage, **args)
@@ -82,7 +84,10 @@ class ZODBUpdateTests(unittest.TestCase):
         del sys.modules['module1']
         del sys.modules['module2']
 
+        self.conn.close()
         self.db.close()
+        self.storage.close()
+        os.close(self.tmphnd)
         os.unlink(self.dbfile)
         os.unlink(self.dbfile + '.index')
         os.unlink(self.dbfile + '.tmp')
