@@ -5,7 +5,18 @@ Changes
 ----------------
 
 - More debug logging shows now the currently processed OID
-  (that is helpful to determine which object misses the factory)
+  (that is helpful to determine which object misses the factory).
+
+- Support for missing factories have been improved: an error used to
+  occur if a pickle needed an update and contained a reference to a
+  missing class (not instance of this class).
+
+  This case is now fixed.
+
+- Python 2.4 is no longer supported. Please stick to version 0.3 if
+  you need Python .4 support.
+
+
 
 0.4 (2010-07-14)
 ----------------

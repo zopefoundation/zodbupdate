@@ -15,10 +15,8 @@
 import ZODB
 import ZODB.broken
 import ZODB.FileStorage
-import logging
 import os
 import persistent
-import pickle
 import sys
 import tempfile
 import transaction

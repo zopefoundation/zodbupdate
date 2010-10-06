@@ -16,15 +16,75 @@ import cPickle
 import cStringIO
 import logging
 import types
+import sys
 
 from ZODB.broken import find_global, Broken, rebuild
 from zodbupdate import utils
 
 logger = logging.getLogger('zodbupdate')
+known_broken_modules = {}
 
 
-def isbroken(symb):
+def is_broken(symb):
+    """Return true if the given symbol is broken.
+    """
     return isinstance(symb, types.TypeType) and Broken in symb.__mro__
+
+
+def create_broken_module_for(symb):
+    """If your pickle refer a broken class (not an instance of it, a
+       reference to the class symbol itself) you have no choice than
+       having this module available in the same module and with the
+       same name, otherwise repickling doesn't work (as both pickle
+       and cPikle __import__ the module, and verify the class symbol
+       is the same).
+    """
+    parts = symb.__module__.split('.')
+    previous_module = None
+    previous_name = None
+    for fullname, name in reversed(
+        [('.'.join(parts[0:p+1]), parts[p]) for p in range(1, len(parts))]):
+        if fullname not in sys.modules:
+            if fullname not in known_broken_modules:
+                module = types.ModuleType(fullname)
+                module.__name__ = name
+                module.__file__ = '<broken module to pickle class reference>'
+                module.__path__ = []
+                known_broken_modules[fullname] = module
+            else:
+                module = known_broken_modules[fullname]
+            if previous_module and previous_name:
+                setattr(module, previous_name, previous_module)
+            previous_module = module
+            previous_name = name
+        else:
+            if previous_module and previous_name:
+                setattr(sys.modules[fullname], previous_name, previous_module)
+                break
+    if symb.__module__ in known_broken_modules:
+        setattr(known_broken_modules[symb.__module__], symb.__name__, symb)
+    else:
+        setattr(sys.modules[symb.__module__], symb.__name__, symb)
+
+
+class BrokenModuleFinder(object):
+    """This broken module finder works with create_broken_module_for.
+    """
+
+    def load_module(self, fullname):
+        module = known_broken_modules[fullname]
+        if fullname not in sys.modules:
+            sys.modules[fullname] = module
+        module.__loader__ = self
+        return module
+
+    def find_module(self, fullname, path=None):
+        if fullname in known_broken_modules:
+            return self
+        return None
+
+
+sys.meta_path.append(BrokenModuleFinder())
 
 
 class NullIterator(object):
@@ -102,9 +162,10 @@ class ObjectRenamer(object):
             return self.__changes[symb_info]
         else:
             symb = find_global(*symb_info, Broken=ZODBBroken)
-            if isbroken(symb):
-                logger.warning(u'Warning: Missing factory for %s' %
-                               u' '.join(symb_info))
+            if is_broken(symb):
+                logger.warning(
+                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
+                create_broken_module_for(symb)
             elif hasattr(symb, '__name__') and hasattr(symb, '__module__'):
                 new_symb_info = (symb.__module__, symb.__name__)
                 if new_symb_info != symb_info:
@@ -174,10 +235,10 @@ class ObjectRenamer(object):
         """
         if isinstance(class_meta, tuple):
             symb, args = class_meta
-            if isbroken(symb):
+            if is_broken(symb):
                 symb_info = (symb.__module__, symb.__name__)
-                logger.warning(u'Warning: Missing factory for %s' %
-                               u' '.join(symb_info))
+                logger.warning(
+                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
                 return (symb_info, args)
             elif isinstance(symb, tuple):
                 return self.__update_symb(symb), args
@@ -207,9 +268,9 @@ class ObjectRenamer(object):
         try:
             pickler.dump(class_meta)
             pickler.dump(data)
-        except cPickle.PicklingError:
-            # Could not pickle that record, likely due to a broken
-            # class ignore it.
+        except cPickle.PicklingError, error:
+            logger.error('Error while pickling modified record: %s' % error)
+            # Could not pickle that record, skip it.
             return None
 
         output_file.truncate()

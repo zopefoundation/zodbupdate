@@ -12,7 +12,6 @@
 #
 ##############################################################################
 
-from ZODB.DB import DB
 from ZODB.FileStorage import FileStorage
 from struct import pack, unpack
 import ZODB.POSException
@@ -20,9 +19,6 @@ import ZODB.broken
 import ZODB.utils
 import cStringIO
 import logging
-import pickle
-import pickletools
-import sys
 import transaction
 import zodbupdate.serialize
 
