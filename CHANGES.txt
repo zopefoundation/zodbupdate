@@ -14,12 +14,10 @@ Changes
 
 - Support for missing factories have been improved: an error used to
   occur if a pickle needed an update and contained a reference to a
-  missing class (not instance of this class).
-
-  This case is now fixed.
+  missing class (not instance of this class). This case is now fixed.
 
 - Python 2.4 is no longer supported. Please stick to version 0.3 if
-  you need Python .4 support.
+  you need Python 2.4 support.
 
 
 
