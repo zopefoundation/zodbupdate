@@ -34,14 +34,13 @@ def is_broken(symb):
 def create_broken_module_for(symb):
     """If your pickle refer a broken class (not an instance of it, a
        reference to the class symbol itself) you have no choice than
-       having this module available in the same module and with the
+       having this module available in the same symbol and with the
        same name, otherwise repickling doesn't work (as both pickle
        and cPikle __import__ the module, and verify the class symbol
-       is the same).
+       is the same than the one provided).
     """
     parts = symb.__module__.split('.')
-    previous_module = None
-    previous_name = None
+    previous = None
     for fullname, name in reversed(
         [('.'.join(parts[0:p+1]), parts[p]) for p in range(1, len(parts))]):
         if fullname not in sys.modules:
@@ -52,18 +51,20 @@ def create_broken_module_for(symb):
                 module.__path__ = []
                 known_broken_modules[fullname] = module
             else:
-                module = known_broken_modules[fullname]
-            if previous_module and previous_name:
-                setattr(module, previous_name, previous_module)
-            previous_module = module
-            previous_name = name
+                if previous:
+                    module = known_broken_modules[fullname]
+                    setattr(module, *previous)
+                break
+            if previous:
+                setattr(module, *previous)
+            previous = (name, module)
         else:
-            if previous_module and previous_name:
-                setattr(sys.modules[fullname], previous_name, previous_module)
+            if previous:
+                setattr(sys.modules[fullname], *previous)
                 break
     if symb.__module__ in known_broken_modules:
         setattr(known_broken_modules[symb.__module__], symb.__name__, symb)
-    else:
+    elif symb.__module__ in sys.modules:
         setattr(sys.modules[symb.__module__], symb.__name__, symb)
 
 
@@ -269,7 +270,7 @@ class ObjectRenamer(object):
             pickler.dump(class_meta)
             pickler.dump(data)
         except cPickle.PicklingError, error:
-            logger.error('Error while pickling modified record: %s' % error)
+            logger.error('Error: cannot pickling modified record: %s' % error)
             # Could not pickle that record, skip it.
             return None
 
