@@ -120,7 +120,8 @@ class Updater(object):
                 yield oid, tid, cStringIO.StringIO(data)
                 if next is None:
                     break
-        elif IStorageIteration(self.storage) and not self.storage.supportsUndo():
+        elif (IStorageIteration.providedBy(self.storage) and
+              not self.storage.supportsUndo()):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
             for transaction in self.storage.iterator():
