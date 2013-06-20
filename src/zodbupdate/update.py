@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration
 from ZODB.FileStorage import FileStorage
 from struct import pack, unpack
 import ZODB.POSException
@@ -88,14 +89,9 @@ class Updater(object):
     @property
     def records(self):
         next = ZODB.utils.repr_to_oid(self.start_at)
-        if not isinstance(self.storage, FileStorage):
-            # Only FileStorage as _index (this is not an API defined attribute)
-            while True:
-                oid, tid, data, next = self.storage.record_iternext(next)
-                yield oid, tid, cStringIO.StringIO(data)
-                if next is None:
-                    break
-        else:
+        if isinstance(self.storage, FileStorage):
+            # Custom iterator for FileStorage. This is used to be able
+            # to recover form a POSKey error.
             index = self.storage._index
 
             while True:
@@ -117,3 +113,19 @@ class Updater(object):
                 except ValueError:
                     # No more records
                     break
+        elif IStorageCurrentRecordIteration.providedBy(self.storage):
+            # Second best way to iterate through the lastest records.
+            while True:
+                oid, tid, data, next = self.storage.record_iternext(next)
+                yield oid, tid, cStringIO.StringIO(data)
+                if next is None:
+                    break
+        elif IStorageIteration(self.storage) and not self.storage.supportsUndo():
+            # If we can't iterate only through the recent records,
+            # iterate on all. Of course doing a pack before help :).
+            for transaction in self.storage.iterator():
+                for rec in transaction:
+                    yield rec.oid, rec.tid, cStringIO.StringIO(rec.data)
+        else:
+            raise SystemExit(
+                u"Don't know how to iterate through this storage type")
