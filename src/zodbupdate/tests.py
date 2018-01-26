@@ -43,12 +43,15 @@ class ZODBUpdateTests(unittest.TestCase):
         self.log_filter = LogFilter(self.log_messages)
         zodbupdate.update.logger.addFilter(self.log_filter)
 
-        sys.modules['module1'] =  types.ModuleType('module1')
-        sys.modules['module2'] =  types.ModuleType('module2')
+        sys.modules['module1'] = types.ModuleType('module1')
+        sys.modules['module2'] = types.ModuleType('module2')
+
         class Factory(persistent.Persistent):
             pass
+
         class OtherFactory(persistent.Persistent):
             pass
+
         sys.modules['module1'].Factory = Factory
         Factory.__module__ = 'module1'
         sys.modules['module2'].OtherFactory = OtherFactory
@@ -100,13 +103,15 @@ class ZODBUpdateTests(unittest.TestCase):
 
         updater = self.update()
 
-        self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
-        self.assert_(isinstance(self.root['test'],
-                                ZODB.broken.PersistentBroken))
+        self.assertEquals(
+            '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(
+            isinstance(self.root['test'], ZODB.broken.PersistentBroken))
         self.failUnless(len(self.log_messages))
-        self.assertEquals('Warning: Missing factory for module1 Factory',
-                          self.log_messages[0])
+        self.assertEquals(
+            'Warning: Missing factory for module1 Factory',
+            self.log_messages[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEquals({}, renames)
 
@@ -140,25 +145,31 @@ class ZODBUpdateTests(unittest.TestCase):
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
         updater = self.update(dry=True)
-        self.assertEquals('cmodule1\nFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals(
+            '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEquals({'module1 Factory': 'module1 NewFactory'}, renames)
 
         updater = self.update(dry=False)
-        self.assertEquals('cmodule1\nNewFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEquals(
+            'cmodule1\nNewFactory\nq\x01.}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEquals({'module1 Factory': 'module1 NewFactory'}, renames)
 
     def test_factory_registered_with_copy_reg(self):
         # Factories registered with copy_reg.pickle loose their __name__.
         # We simply ignore those.
+
         class AnonymousFactory(object):
+
             def __new__(cls, name):
                 return object.__new__(cls)
+
             def __init__(self, name):
                 self._name = name
+
             def getName(self):
                 return self._name
 
@@ -175,7 +186,9 @@ class ZODBUpdateTests(unittest.TestCase):
         updater = self.update()
 
         self.assertEquals('module1', self.root['test'].__class__.__module__)
-        self.assertEquals('AnonymousFactory', self.root['test'].__class__.__name__)
+        self.assertEquals(
+            'AnonymousFactory',
+            self.root['test'].__class__.__name__)
         renames = updater.processor.get_found_implicit_rules()
         self.assertEquals({}, renames)
 
@@ -198,13 +211,13 @@ class ZODBUpdateTests(unittest.TestCase):
         sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
-        updater = self.update(renames={'module1 Factory': 'module2 OtherFactory'})
+        updater = self.update(
+            renames={'module1 Factory': 'module2 OtherFactory'})
 
         self.assertEquals('cmodule2\nOtherFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEquals({}, renames)
-
 
     def test_loaded_renames_override_missing(self):
         # Same as test_factory_missing, but provide a pre-defined rename
@@ -214,7 +227,8 @@ class ZODBUpdateTests(unittest.TestCase):
         transaction.commit()
 
         del sys.modules['module1'].Factory
-        updater = self.update(renames={'module1 Factory': 'module2 OtherFactory'})
+        updater = self.update(
+            renames={'module1 Factory': 'module2 OtherFactory'})
 
         self.assertEquals('cmodule2\nOtherFactory\nq\x01.}q\x02.',
                           self.storage.load(self.root['test']._p_oid, '')[0])

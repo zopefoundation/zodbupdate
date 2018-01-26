@@ -14,27 +14,30 @@
 
 from setuptools import setup, find_packages
 
-read = lambda x:open(x).read()
+
+def read(x):
+    return open(x).read()
+
 
 setup(name='zodbupdate',
       author='Zope Developers',
       author_email='zodb-dev@zope.org',
       url='http://www.python.org/pypi/zodbupdate',
       license='ZPL 2.1',
-      description=
-        'Update ZODB class references for moved or renamed classes.',
+      description='Update ZODB class references for moved or renamed classes.',
       long_description=(
         read('README.txt')
         + '\n' +
         read('CHANGES.txt')),
-      version='0.6dev',
+      version='0.6.dev0',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
       install_requires=[
-          'ZODB3',
+          'ZODB',
+          'zodbpickle',
           'setuptools'
       ],
-      entry_points = dict(
-        console_scripts =
-            ['zodbupdate = zodbupdate.main:main']))
+      entry_points={
+          "console_scripts": ['zodbupdate = zodbupdate.main:main']
+      })
