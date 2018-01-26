@@ -128,8 +128,9 @@ class ZODBUpdateTests(unittest.TestCase):
 
         updater = self.update()
 
-        self.assertEqual('cmodule1\nNewFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual(
+            '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertEqual('module1', self.root['test'].__class__.__module__)
         self.assertEqual('NewFactory', self.root['test'].__class__.__name__)
         renames = updater.processor.get_found_implicit_rules()
@@ -153,7 +154,7 @@ class ZODBUpdateTests(unittest.TestCase):
 
         updater = self.update(dry=False)
         self.assertEqual(
-            'cmodule1\nNewFactory\nq\x01.}q\x02.',
+            '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
             self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEqual({'module1 Factory': 'module1 NewFactory'}, renames)
@@ -214,8 +215,9 @@ class ZODBUpdateTests(unittest.TestCase):
         updater = self.update(
             renames={'module1 Factory': 'module2 OtherFactory'})
 
-        self.assertEqual('cmodule2\nOtherFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual(
+            '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEqual({}, renames)
 
@@ -230,8 +232,9 @@ class ZODBUpdateTests(unittest.TestCase):
         updater = self.update(
             renames={'module1 Factory': 'module2 OtherFactory'})
 
-        self.assertEqual('cmodule2\nOtherFactory\nq\x01.}q\x02.',
-                          self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual(
+            '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
         renames = updater.processor.get_found_implicit_rules()
         self.assertEqual({}, renames)
 

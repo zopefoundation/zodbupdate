@@ -144,13 +144,12 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes, pickler_name='C'):
+    def __init__(self, changes):
         self.__added = dict()
         self.__changes = dict()
         for old, new in changes.iteritems():
             self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
         self.__changed = False
-        self.__pickler_name = pickler_name
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -211,8 +210,10 @@ class ObjectRenamer(object):
         """Create an unpickler with our custom global symbol loader
         and reference resolver.
         """
-        return utils.UNPICKLERS[self.__pickler_name](
-            input_file, self.__persistent_load, self.__find_global)
+        return utils.Unpickler(
+            input_file,
+            self.__persistent_load,
+            self.__find_global)
 
     def __persistent_id(self, obj):
         """Save the given object as a reference only if it was a
@@ -226,9 +227,7 @@ class ObjectRenamer(object):
         """Create a pickler able to save to the given file, objects we
         loaded while paying attention to any reference we loaded.
         """
-        pickler = cPickle.Pickler(output_file, 1)
-        pickler.persistent_id = self.__persistent_id
-        return pickler
+        return utils.Pickler(output_file, self.__persistent_id)
 
     def __update_class_meta(self, class_meta):
         """Update class information, which can contain information

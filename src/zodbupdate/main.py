@@ -19,14 +19,14 @@ import logging
 import optparse
 import pkg_resources
 import pprint
-import sys
 import time
 import zodbupdate.update
 import zodbupdate.utils
 
 
 parser = optparse.OptionParser(
-    description="Updates all references to classes to their canonical location.")
+    description=("Updates all references to classes to "
+                 "their canonical location."))
 parser.add_option(
     "-f", "--file",
     help="load FileStorage")
@@ -52,12 +52,9 @@ parser.add_option(
     "-d", "--debug", action="store_true",
     help="post mortem pdb on failure")
 parser.add_option(
-    "-p", "--pickler", default="C",
-    help="chooser unpickler implementation C or Python (default C)")
-parser.add_option(
     "--pack", action="store_true", dest="pack",
-    help="pack the storage when done. use in conjunction of -c if you have blobs storage")
-
+    help=("pack the storage when done. use in conjunction of -c "
+          "if you have blobs storage"))
 
 
 class DuplicateFilter(object):
@@ -71,15 +68,12 @@ class DuplicateFilter(object):
         self.seen.add(record.msg)
         return True
 
+
 duplicate_filter = DuplicateFilter()
 
 
 def main():
     options, args = parser.parse_args()
-
-    if options.pickler not in zodbupdate.utils.UNPICKLERS:
-        raise SystemExit('Invalid pickler chosen. Available picklers: %s' %
-                         ', '.join(zodbupdate.utils.UNPICKLERS))
 
     if options.quiet:
         level = logging.ERROR
@@ -112,16 +106,16 @@ def main():
     for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
         rules = entry_point.load()
         rename_rules.update(rules)
-        logging.info('Loaded %s rules from %s:%s' %
-                      (len(rules), entry_point.module_name, entry_point.name))
+        logging.info(
+            'Loaded %s rules from %s:%s' %
+            (len(rules), entry_point.module_name, entry_point.name))
 
     updater = zodbupdate.update.Updater(
         storage,
         dry=options.dry_run,
         renames=rename_rules,
         start_at=start_at,
-        debug=options.debug,
-        pickler_name=options.pickler)
+        debug=options.debug)
 
     try:
         updater()
@@ -144,4 +138,3 @@ def main():
         print('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
-
