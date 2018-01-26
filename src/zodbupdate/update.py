@@ -21,7 +21,9 @@ import ZODB.utils
 import io
 import logging
 import transaction
+import zodbupdate.convert
 import zodbupdate.serialize
+import zodbupdate.utils
 
 logger = logging.getLogger('zodbupdate')
 
@@ -32,10 +34,20 @@ class Updater(object):
     """Update class references for all current objects in a storage."""
 
     def __init__(self, storage, dry=False, renames=None,
-                 start_at='0x00', debug=False):
+                 start_at='0x00', debug=False, convert_py3=False):
+
+        all_renames = {}
+        if renames is not None:
+            all_renames.update(renames)
+        protocol = zodbupdate.utils.DEFAULT_PROTOCOL
+        if convert_py3 and protocol != 3:
+            protocol = 3
+            all_renames.update(zodbupdate.convert.CONVERT_RENAMES)
+
         self.dry = dry
         self.storage = storage
-        self.processor = zodbupdate.serialize.ObjectRenamer(renames or {})
+        self.processor = zodbupdate.serialize.ObjectRenamer(
+            all_renames, protocol)
         self.start_at = start_at
         self.debug = debug
 

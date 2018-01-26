@@ -25,6 +25,7 @@ else:
     except ImportError:
         import zodbpickle.pickle as pickle
 
+PicklingError = pickle.PicklingError
 
 logger = logging.getLogger('zodbupdate')
 

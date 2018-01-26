@@ -12,7 +12,6 @@
 #
 ##############################################################################
 
-import cPickle
 import io
 import logging
 import types
@@ -42,7 +41,8 @@ def create_broken_module_for(symb):
     parts = symb.__module__.split('.')
     previous = None
     for fullname, name in reversed(
-        [('.'.join(parts[0:p+1]), parts[p]) for p in range(1, len(parts))]):
+            [('.'.join(parts[0:p+1]), parts[p])
+             for p in range(1, len(parts))]):
         if fullname not in sys.modules:
             if fullname not in known_broken_modules:
                 module = types.ModuleType(fullname)
@@ -144,12 +144,13 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes):
+    def __init__(self, changes, protocol=3):
         self.__added = dict()
         self.__changes = dict()
-        for old, new in changes.iteritems():
+        for old, new in changes.items():
             self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
         self.__changed = False
+        self.__protocol = protocol
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -227,7 +228,8 @@ class ObjectRenamer(object):
         """Create a pickler able to save to the given file, objects we
         loaded while paying attention to any reference we loaded.
         """
-        return utils.Pickler(output_file, self.__persistent_id)
+        return utils.Pickler(
+            output_file, self.__persistent_id, self.__protocol)
 
     def __update_class_meta(self, class_meta):
         """Update class information, which can contain information
@@ -268,7 +270,7 @@ class ObjectRenamer(object):
         try:
             pickler.dump(class_meta)
             pickler.dump(data)
-        except cPickle.PicklingError as error:
+        except utils.PicklingError as error:
             logger.error('Error: cannot pickling modified record: %s' % error)
             # Could not pickle that record, skip it.
             return None

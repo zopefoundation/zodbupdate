@@ -22,6 +22,7 @@ import pprint
 import time
 import zodbupdate.update
 import zodbupdate.utils
+import six
 
 
 parser = optparse.OptionParser(
@@ -55,6 +56,9 @@ parser.add_option(
     "--pack", action="store_true", dest="pack",
     help=("pack the storage when done. use in conjunction of -c "
           "if you have blobs storage"))
+parser.add_option(
+    "--convert-py3", action="store_true",  dest="convert_py3",
+    help="convert pickle format to protocol 3 and adjust bytes")
 
 
 class DuplicateFilter(object):
@@ -115,7 +119,8 @@ def main():
         dry=options.dry_run,
         renames=rename_rules,
         start_at=start_at,
-        debug=options.debug)
+        debug=options.debug,
+        convert_py3=options.convert_py3)
 
     try:
         updater()
@@ -138,3 +143,15 @@ def main():
         print('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
+
+    if options.convert_py3:
+        if six.PY3:
+            print("You are already in python 3.")
+        elif not options.file:
+            print("We do not know the database file so "
+                  "we do not change the magic marker.")
+        else:
+            print("Updating magic marker for {}".format(options.file))
+            with open(options.file, 'r+b') as data_fs:
+                # Override the magic.
+                data_fs.write('FS30')

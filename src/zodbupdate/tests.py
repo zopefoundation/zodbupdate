@@ -94,6 +94,24 @@ class ZODBUpdateTests(unittest.TestCase):
         os.unlink(self.dbfile + '.tmp')
         os.unlink(self.dbfile + '.lock')
 
+    def test_convert_datetime_to_py3(self):
+        import datetime
+
+        test = sys.modules['module1'].Factory()
+        test.date_of_birth = datetime.datetime(2018, 12, 12)
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and datetime payload is encoded
+        # as bytes (C).
+        self.assertEqual(
+            '\x80\x03cmodule1\nFactory\nq\x01.'
+            '\x80\x03}q\x02U\rdate_of_birthq\x03cdatetime\ndatetime\nq\x04'
+            'C\n\x07\xe2\x0c\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x05s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
     def test_factory_ignore_missing(self):
         # Create a ZODB with an object referencing a factory, then
         # remove the factory and update the ZODB.
