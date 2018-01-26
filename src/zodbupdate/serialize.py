@@ -13,7 +13,7 @@
 ##############################################################################
 
 import cPickle
-import cStringIO
+import io
 import logging
 import types
 import sys
@@ -165,14 +165,14 @@ class ObjectRenamer(object):
             symb = find_global(*symb_info, Broken=ZODBBroken)
             if is_broken(symb):
                 logger.warning(
-                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
+                    'Warning: Missing factory for %s' % ' '.join(symb_info))
                 create_broken_module_for(symb)
             elif hasattr(symb, '__name__') and hasattr(symb, '__module__'):
                 new_symb_info = (symb.__module__, symb.__name__)
                 if new_symb_info != symb_info:
                     logger.info(
-                        u'New implicit rule detected %s to %s' %
-                        (u' '.join(symb_info), u' '.join(new_symb_info)))
+                        'New implicit rule detected %s to %s' %
+                        (' '.join(symb_info), ' '.join(new_symb_info)))
                     self.__changes[symb_info] = new_symb_info
                     self.__added[symb_info] = new_symb_info
                     self.__changed = True
@@ -239,7 +239,7 @@ class ObjectRenamer(object):
             if is_broken(symb):
                 symb_info = (symb.__module__, symb.__name__)
                 logger.warning(
-                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
+                    'Warning: Missing factory for %s' % ' '.join(symb_info))
                 return (symb_info, args)
             elif isinstance(symb, tuple):
                 return self.__update_symb(symb), args
@@ -264,12 +264,12 @@ class ObjectRenamer(object):
                  unpickler.need_repickle())):
             return None
 
-        output_file = cStringIO.StringIO()
+        output_file = io.BytesIO()
         pickler = self.__pickler(output_file)
         try:
             pickler.dump(class_meta)
             pickler.dump(data)
-        except cPickle.PicklingError, error:
+        except cPickle.PicklingError as error:
             logger.error('Error: cannot pickling modified record: %s' % error)
             # Could not pickle that record, skip it.
             return None

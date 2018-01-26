@@ -18,7 +18,7 @@ from struct import pack, unpack
 import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
-import cStringIO
+import io
 import logging
 import transaction
 import zodbupdate.serialize
@@ -48,7 +48,8 @@ class Updater(object):
 
     def __commit_transaction(self, t, changed):
         if self.dry or not changed:
-            logger.info('Dry run selected or no changes, aborting transaction.')
+            logger.info(
+                'Dry run selected or no changes, aborting transaction.')
             self.storage.tpc_abort(t)
         else:
             logger.info('Committing changes.')
@@ -77,10 +78,11 @@ class Updater(object):
                     t = self.__new_transaction()
 
             self.__commit_transaction(t, count != 0)
-        except (Exception,), e:
+        except Exception as e:
             if not self.debug:
                 raise e
-            import sys, pdb
+            import sys
+            import pdb
             (type, value, traceback) = sys.exc_info()
             pdb.post_mortem(traceback)
             del traceback
@@ -98,13 +100,13 @@ class Updater(object):
                 oid = index.minKey(next)
                 try:
                     data, tid = self.storage.load(oid, "")
-                except ZODB.POSException.POSKeyError, e:
+                except ZODB.POSException.POSKeyError as e:
                     logger.error(
-                        u'Warning: Jumping record %s, '
-                        u'referencing missing key in database: %s' %
+                        'Warning: Jumping record %s, '
+                        'referencing missing key in database: %s' %
                         (ZODB.utils.oid_repr(oid), str(e)))
                 else:
-                    yield  oid, tid, cStringIO.StringIO(data)
+                    yield oid, tid, io.BytesIO(data)
 
                 oid_as_long, = unpack(">Q", oid)
                 next = pack(">Q", oid_as_long + 1)
@@ -117,7 +119,7 @@ class Updater(object):
             # Second best way to iterate through the lastest records.
             while True:
                 oid, tid, data, next = self.storage.record_iternext(next)
-                yield oid, tid, cStringIO.StringIO(data)
+                yield oid, tid, io.BytesIO(data)
                 if next is None:
                     break
         elif (IStorageIteration.providedBy(self.storage) and
@@ -126,7 +128,7 @@ class Updater(object):
             # iterate on all. Of course doing a pack before help :).
             for transaction in self.storage.iterator():
                 for rec in transaction:
-                    yield rec.oid, rec.tid, cStringIO.StringIO(rec.data)
+                    yield rec.oid, rec.tid, io.BytesIO(rec.data)
         else:
             raise SystemExit(
-                u"Don't know how to iterate through this storage type")
+                "Don't know how to iterate through this storage type")

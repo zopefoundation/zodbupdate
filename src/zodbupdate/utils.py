@@ -12,8 +12,8 @@
 #
 ##############################################################################
 
-import cPickle
 import pickle
+import cPickle
 import logging
 
 logger = logging.getLogger('zodbupdate')
@@ -41,7 +41,7 @@ class PythonUnpickler(pickle.Unpickler):
             value = func.__new__(func)
             self.__repickle = True
             logger.warning(
-                u'Warning: Pickle contains ExtensionClass hack for %s' % func)
+                'Warning: Pickle contains ExtensionClass hack for %s' % func)
         else:
             value = func(*args)
         stack[-1] = value
@@ -53,7 +53,6 @@ class PythonUnpickler(pickle.Unpickler):
         return self.__repickle
 
     dispatch[pickle.REDUCE] = load_reduce
-
 
 
 def CUnpickler(input_file, persistent_load, find_global):
@@ -68,4 +67,3 @@ def CUnpickler(input_file, persistent_load, find_global):
 UNPICKLERS = {
     'Python': PythonUnpickler,
     'C': CUnpickler}
-

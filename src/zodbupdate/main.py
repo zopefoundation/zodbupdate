@@ -78,7 +78,7 @@ def main():
     options, args = parser.parse_args()
 
     if options.pickler not in zodbupdate.utils.UNPICKLERS:
-        raise SystemExit(u'Invalid pickler chosen. Available picklers: %s' %
+        raise SystemExit('Invalid pickler chosen. Available picklers: %s' %
                          ', '.join(zodbupdate.utils.UNPICKLERS))
 
     if options.quiet:
@@ -94,7 +94,7 @@ def main():
 
     if options.file and options.config:
         raise SystemExit(
-            u'Exactly one of --file or --config must be given.')
+            'Exactly one of --file or --config must be given.')
 
     if options.file:
         storage = ZODB.FileStorage.FileStorage(options.file)
@@ -102,7 +102,7 @@ def main():
         storage = ZODB.config.storageFromURL(options.config)
     else:
         raise SystemExit(
-            u'Exactly one of --file or --config must be given.')
+            'Exactly one of --file or --config must be given.')
 
     start_at = '0x00'
     if options.oid:
@@ -112,7 +112,7 @@ def main():
     for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
         rules = entry_point.load()
         rename_rules.update(rules)
-        logging.info(u'Loaded %s rules from %s:%s' %
+        logging.info('Loaded %s rules from %s:%s' %
                       (len(rules), entry_point.module_name, entry_point.name))
 
     updater = zodbupdate.update.Updater(
@@ -125,23 +125,23 @@ def main():
 
     try:
         updater()
-    except Exception, e:
-        logging.debug(u'An error occured', exc_info=True)
-        logging.error(u'Stopped processing, due to: %s' % e)
+    except Exception as e:
+        logging.debug('An error occured', exc_info=True)
+        logging.error('Stopped processing, due to: %s' % e)
         raise SystemExit()
 
     implicit_renames = updater.processor.get_found_implicit_rules()
     if implicit_renames:
-        print 'Found new rules:'
-        print pprint.pformat(implicit_renames)
+        print('Found new rules:')
+        print(pprint.pformat(implicit_renames))
     if options.save_renames:
-        print 'Saving rules into %s' % options.save_renames
+        print('Saving rules into %s' % options.save_renames)
         rename_rules.update(implicit_renames)
         f = open(options.save_renames, 'w')
         f.write('renames = %s' % pprint.pformat(rename_rules))
         f.close()
     if options.pack:
-        print 'Packing storage ...'
+        print('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
 
