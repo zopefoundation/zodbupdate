@@ -195,21 +195,42 @@ class ObjectRenamer(object):
         represent that reference, and not the real object designated
         by the reference.
         """
+        # This takes care of returning the OID as bytes in order to convert
+        # a database to Python 3.
         if isinstance(reference, tuple):
-            oid, klass_info = reference
-            if isinstance(klass_info, tuple):
-                klass_info = self.__update_symb(klass_info)
+            oid, cls_info = reference
+            if isinstance(cls_info, tuple):
+                cls_info = self.__update_symb(cls_info)
             return ZODBReference(
-                (zodbpickle.binary(oid), klass_info))
+                (zodbpickle.binary(oid), cls_info))
         if isinstance(reference, list):
+            if len(reference) == 1:
+                oid, = reference
+                return ZODBReference(
+                    ['w', (zodbpickle.binary(oid))])
             mode, information = reference
             if mode == 'm':
-                database_name, oid, klass_info = information
-                if isinstance(klass_info, tuple):
-                    klass_info = self.__update_symb(klass_info)
+                database_name, oid, cls_info = information
+                if isinstance(cls_info, tuple):
+                    cls_info = self.__update_symb(cls_info)
                 return ZODBReference(
-                    ['m', (database_name, zodbpickle.binary(oid), klass_info)])
-        return ZODBReference(reference)
+                    ['m', (database_name, zodbpickle.binary(oid), cls_info)])
+            if mode == 'n':
+                database_name, oid = information
+                return ZODBReference(
+                    ['m', (database_name, zodbpickle.binary(oid))])
+            if mode == 'w':
+                if len(information) == 1:
+                    oid, = information
+                    return ZODBReference(
+                        ['w', (zodbpickle.binary(oid))])
+                oid, database_name = information
+                return ZODBReference(
+                    ['w', (zodbpickle.binary(oid), database_name)])
+        if isinstance(reference, (str, zodbpickle.binary)):
+            oid = reference
+            return ZODBReference(zodbpickle.binary(oid))
+        raise AssertionError('Unknown reference format.')
 
     def __unpickler(self, input_file):
         """Create an unpickler with our custom global symbol loader
