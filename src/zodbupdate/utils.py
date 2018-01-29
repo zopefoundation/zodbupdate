@@ -18,12 +18,31 @@ import six
 
 
 if six.PY3:
-    raise RuntimeError('Not yet')
+    import zodbpickle.pickle as pickle
+
+    class UnpicklerImpl(pickle.Unpickler):
+
+        def __init__(self, f):
+            super(UnpicklerImpl, self).__init__(f)
+
+        # Py3: Python 3 doesn't allow assignments to find_global,
+        # instead, find_class can be overridden
+
+        find_global = None
+
+        def find_class(self, modulename, name):
+            if self.find_global is None:
+                return super(UnpicklerImpl, self).find_class(modulename, name)
+            return self.find_global(modulename, name)
+
 else:
     try:
         import zodbpickle.fastpickle as pickle
     except ImportError:
         import zodbpickle.pickle as pickle
+
+    UnpicklerImpl = pickle.Unpickler
+
 
 PicklingError = pickle.PicklingError
 
@@ -35,7 +54,7 @@ DEFAULT_PROTOCOL = ZODB._compat._protocol
 def Unpickler(
         input_file, persistent_load, find_global):
     # Please refer to ZODB._compat for explanation.
-    unpickler = pickle.Unpickler(input_file)
+    unpickler = UnpicklerImpl(input_file)
     if find_global is not None:
         unpickler.find_global = find_global
         try:

@@ -40,14 +40,14 @@ class Updater(object):
         if renames is not None:
             all_renames.update(renames)
         protocol = zodbupdate.utils.DEFAULT_PROTOCOL
-        if convert_py3 and protocol != 3:
+        if convert_py3:
             protocol = 3
             all_renames.update(zodbupdate.convert.CONVERT_RENAMES)
 
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(
-            all_renames, protocol)
+            changes=all_renames, protocol=protocol, repickle_all=convert_py3)
         self.start_at = start_at
         self.debug = debug
 
@@ -89,15 +89,15 @@ class Updater(object):
                     t = self.__new_transaction()
 
             self.__commit_transaction(t, count != 0)
-        except Exception as e:
+        except Exception as error:
             if not self.debug:
-                raise e
+                raise error
             import sys
             import pdb
             (type, value, traceback) = sys.exc_info()
             pdb.post_mortem(traceback)
             del traceback
-            raise e
+            raise error
 
     @property
     def records(self):

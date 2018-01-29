@@ -124,9 +124,9 @@ def main():
 
     try:
         updater()
-    except Exception as e:
-        logging.debug('An error occured', exc_info=True)
-        logging.error('Stopped processing, due to: %s' % e)
+    except Exception as error:
+        logging.error('An error occured', exc_info=True)
+        logging.error('Stopped processing, due to: {}'.format(error))
         raise SystemExit()
 
     implicit_renames = updater.processor.get_found_implicit_rules()

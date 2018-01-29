@@ -16,6 +16,7 @@ import io
 import logging
 import types
 import sys
+import zodbpickle
 
 from ZODB.broken import find_global, Broken, rebuild
 from zodbupdate import utils
@@ -144,13 +145,14 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes, protocol=3):
+    def __init__(self, changes, protocol=3, repickle_all=False):
         self.__added = dict()
         self.__changes = dict()
         for old, new in changes.items():
             self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
         self.__changed = False
         self.__protocol = protocol
+        self.__repickle_all = repickle_all
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -197,14 +199,16 @@ class ObjectRenamer(object):
             oid, klass_info = reference
             if isinstance(klass_info, tuple):
                 klass_info = self.__update_symb(klass_info)
-            return ZODBReference((oid, klass_info))
+            return ZODBReference(
+                (zodbpickle.binary(oid), klass_info))
         if isinstance(reference, list):
             mode, information = reference
             if mode == 'm':
                 database_name, oid, klass_info = information
                 if isinstance(klass_info, tuple):
                     klass_info = self.__update_symb(klass_info)
-                return ZODBReference(['m', (database_name, oid, klass_info)])
+                return ZODBReference(
+                    ['m', (database_name, zodbpickle.binary(oid), klass_info)])
         return ZODBReference(reference)
 
     def __unpickler(self, input_file):
@@ -240,7 +244,8 @@ class ObjectRenamer(object):
             if is_broken(symb):
                 symb_info = (symb.__module__, symb.__name__)
                 logger.warning(
-                    'Warning: Missing factory for %s' % ' '.join(symb_info))
+                    'Warning: Missing factory for {}'.format(
+                        ' '.join(symb_info)))
                 return (symb_info, args)
             elif isinstance(symb, tuple):
                 return self.__update_symb(symb), args
@@ -260,9 +265,7 @@ class ObjectRenamer(object):
 
         class_meta = self.__update_class_meta(class_meta)
 
-        if not (self.__changed or
-                (hasattr(unpickler, 'need_repickle') and
-                 unpickler.need_repickle())):
+        if not (self.__changed or self.__repickle_all):
             return None
 
         output_file = io.BytesIO()
@@ -271,7 +274,8 @@ class ObjectRenamer(object):
             pickler.dump(class_meta)
             pickler.dump(data)
         except utils.PicklingError as error:
-            logger.error('Error: cannot pickling modified record: %s' % error)
+            logger.error(
+                'Error: cannot pickling modified record: {}'.format(error))
             # Could not pickle that record, skip it.
             return None
 
