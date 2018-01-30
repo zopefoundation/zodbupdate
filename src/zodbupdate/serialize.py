@@ -29,7 +29,7 @@ known_broken_modules = {}
 def is_broken(symb):
     """Return true if the given symbol is broken.
     """
-    return isinstance(symb, types.TypeType) and Broken in symb.__mro__
+    return isinstance(symb, six.class_types) and Broken in symb.__mro__
 
 
 def create_broken_module_for(symb):

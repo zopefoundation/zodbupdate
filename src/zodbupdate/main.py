@@ -79,6 +79,20 @@ class DuplicateFilter(object):
 duplicate_filter = DuplicateFilter()
 
 
+def setup_logger(verbose=False, quiet=False):
+    if quiet:
+        level = logging.ERROR
+    elif verbose:
+        level = logging.DEBUG
+    else:
+        level = logging.INFO
+
+    logging.getLogger().addHandler(logging.StreamHandler())
+    logging.getLogger().setLevel(level)
+    logger.addFilter(duplicate_filter)
+    return logger
+
+
 def load_renames():
     renames = {}
     for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
@@ -142,16 +156,7 @@ def format_renames(renames):
 def main():
     options, args = parser.parse_args()
 
-    if options.quiet:
-        level = logging.ERROR
-    elif options.verbose:
-        level = logging.DEBUG
-    else:
-        level = logging.INFO
-
-    logging.getLogger().addHandler(logging.StreamHandler())
-    logging.getLogger().setLevel(level)
-    logger.addFilter(duplicate_filter)
+    setup_logger(quiet=options.quiet, verbose=options.verbose)
 
     if options.file and options.config:
         raise AssertionError(
