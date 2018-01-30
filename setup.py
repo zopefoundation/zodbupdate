@@ -35,8 +35,10 @@ setup(name='zodbupdate',
       include_package_data=True,
       install_requires=[
           'ZODB',
+          'setuptools',
+          'six',
+          'transaction',
           'zodbpickle',
-          'setuptools'
       ],
       entry_points={
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
