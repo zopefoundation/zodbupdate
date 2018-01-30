@@ -20,9 +20,12 @@ import optparse
 import pkg_resources
 import pprint
 import time
+import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils
 import six
+
+logger = logging.getLogger('zodbupdate')
 
 
 parser = optparse.OptionParser(
@@ -76,6 +79,66 @@ class DuplicateFilter(object):
 duplicate_filter = DuplicateFilter()
 
 
+def load_renames():
+    renames = {}
+    for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
+        definition = entry_point.load()
+        for old, new in definition.items():
+            renames[tuple(old.split(' '))] = tuple(new.split(' '))
+        logger.info('Loaded {} rename rules from {}:{}'.format(
+            len(definition), entry_point.module_name, entry_point.name))
+    return renames
+
+
+def create_updater(
+        storage,
+        default_renames=None,
+        default_decoders=None,
+        start_at=None,
+        convert_py3=False,
+        dry_run=False,
+        debug=False):
+    if not start_at:
+        start_at = '0x00'
+
+    decoders = {}
+    if default_decoders:
+        decoders.update(default_decoders)
+    renames = load_renames()
+    if default_renames:
+        renames.update(default_renames)
+    repickle_all = False
+    pickle_protocol = zodbupdate.utils.DEFAULT_PROTOCOL
+    if convert_py3:
+        pickle_protocol = 3
+        repickle_all = True
+        decoders.update(zodbupdate.convert.load_decoders())
+        renames.update(zodbupdate.convert.default_renames())
+        if six.PY3:
+            raise AssertionError(
+                'You can only convert a database to Python 3 format '
+                'from Python 2.')
+
+    return zodbupdate.update.Updater(
+        storage,
+        dry=dry_run,
+        renames=renames,
+        decoders=decoders,
+        start_at=start_at,
+        debug=debug,
+        repickle_all=repickle_all,
+        pickle_protocol=pickle_protocol)
+
+
+def format_renames(renames):
+    formatted = {}
+    for old, new in renames.items():
+        formatted[' '.join(old)] = ' '.join(new)
+    if not formatted:
+        return ''
+    return pprint.pformat(formatted)
+
+
 def main():
     options, args = parser.parse_args()
 
@@ -88,70 +151,48 @@ def main():
 
     logging.getLogger().addHandler(logging.StreamHandler())
     logging.getLogger().setLevel(level)
-    logging.getLogger('zodbupdate').addFilter(duplicate_filter)
+    logger.addFilter(duplicate_filter)
 
     if options.file and options.config:
-        raise SystemExit(
+        raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
     if options.file:
         storage = ZODB.FileStorage.FileStorage(options.file)
     elif options.config:
-        storage = ZODB.config.storageFromURL(options.config)
+        with open(options.config) as config:
+            storage = ZODB.config.storageFromFile(config)
     else:
-        raise SystemExit(
+        raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
-    start_at = '0x00'
-    if options.oid:
-        start_at = options.oid
-
-    rename_rules = {}
-    for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
-        rules = entry_point.load()
-        rename_rules.update(rules)
-        logging.info(
-            'Loaded %s rules from %s:%s' %
-            (len(rules), entry_point.module_name, entry_point.name))
-
-    updater = zodbupdate.update.Updater(
+    updater = create_updater(
         storage,
-        dry=options.dry_run,
-        renames=rename_rules,
-        start_at=start_at,
-        debug=options.debug,
-        convert_py3=options.convert_py3)
-
+        start_at=options.oid,
+        convert_py3=options.convert_py3,
+        dry_run=options.dry_run,
+        debug=options.debug)
     try:
         updater()
     except Exception as error:
-        logging.error('An error occured', exc_info=True)
+        logging.info('An error occured', exc_info=True)
         logging.error('Stopped processing, due to: {}'.format(error))
-        raise SystemExit()
+        raise AssertionError()
 
-    implicit_renames = updater.processor.get_found_implicit_rules()
+    implicit_renames = format_renames(
+        updater.processor.get_rules(implicit=True))
     if implicit_renames:
-        print('Found new rules:')
-        print(pprint.pformat(implicit_renames))
+        logger.info('Found new rules: {}'.format(implicit_renames))
     if options.save_renames:
-        print('Saving rules into %s' % options.save_renames)
-        rename_rules.update(implicit_renames)
-        f = open(options.save_renames, 'w')
-        f.write('renames = %s' % pprint.pformat(rename_rules))
-        f.close()
+        logger.info('Saving rules into {}'.format(options.save_renames))
+        with open(options.save_renames, 'w') as output:
+            output.write('renames = {}'.format(
+                format_renames(updater.processor.get_rules(
+                    implicit=True, explicit=True))))
     if options.pack:
-        print('Packing storage ...')
+        logger.info('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
 
-    if options.convert_py3:
-        if six.PY3:
-            print("You are already in python 3.")
-        elif not options.file:
-            print("We do not know the database file so "
-                  "we do not change the magic marker.")
-        else:
-            print("Updating magic marker for {}".format(options.file))
-            with open(options.file, 'r+b') as data_fs:
-                # Override the magic.
-                data_fs.write('FS30')
+    if options.convert_py3 and not options.dry_run:
+        zodbupdate.convert.update_magic_data_fs(options.file)

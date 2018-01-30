@@ -21,7 +21,6 @@ import ZODB.utils
 import io
 import logging
 import transaction
-import zodbupdate.convert
 import zodbupdate.serialize
 import zodbupdate.utils
 
@@ -31,23 +30,20 @@ TRANSACTION_COUNT = 100000
 
 
 class Updater(object):
-    """Update class references for all current objects in a storage."""
+    """Access a storage and perform operations on all of its records.
+    """
 
-    def __init__(self, storage, dry=False, renames=None,
-                 start_at='0x00', debug=False, convert_py3=False):
-
-        all_renames = {}
-        if renames is not None:
-            all_renames.update(renames)
-        protocol = zodbupdate.utils.DEFAULT_PROTOCOL
-        if convert_py3:
-            protocol = 3
-            all_renames.update(zodbupdate.convert.CONVERT_RENAMES)
-
+    def __init__(
+            self, storage, dry=False, renames=None, decoders=None,
+            start_at='0x00', debug=False, repickle_all=False,
+            pickle_protocol=zodbupdate.utils.DEFAULT_PROTOCOL):
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(
-            changes=all_renames, protocol=protocol, repickle_all=convert_py3)
+            renames=renames,
+            decoders=decoders,
+            pickle_protocol=pickle_protocol,
+            repickle_all=repickle_all)
         self.start_at = start_at
         self.debug = debug
 
@@ -57,38 +53,44 @@ class Updater(object):
         t.note('Updated factory references using `zodbupdate`.')
         return t
 
-    def __commit_transaction(self, t, changed):
+    def __commit_transaction(self, t, changed, commit_count):
         if self.dry or not changed:
             logger.info(
-                'Dry run selected or no changes, aborting transaction.')
+                'Dry run selected or no changes, '
+                'aborting transaction. (#{})'.format(commit_count))
             self.storage.tpc_abort(t)
         else:
-            logger.info('Committing changes.')
+            logger.info('Committing changes (#{}).'.format(commit_count))
             self.storage.tpc_vote(t)
             self.storage.tpc_finish(t)
 
     def __call__(self):
+        commit_count = 0
         try:
-            count = 0
+            record_count = 0
             t = self.__new_transaction()
 
             for oid, serial, current in self.records:
-                logger.debug('Processing OID %s' % ZODB.utils.oid_repr(oid))
+                logger.debug('Processing OID {}'.format(
+                    ZODB.utils.oid_repr(oid)))
 
                 new = self.processor.rename(current)
                 if new is None:
                     continue
 
-                logger.debug('Updated OID %s' % ZODB.utils.oid_repr(oid))
+                logger.debug('Updated OID {}'.format(
+                    ZODB.utils.oid_repr(oid)))
                 self.storage.store(oid, serial, new.getvalue(), '', t)
-                count += 1
+                record_count += 1
 
-                if count > TRANSACTION_COUNT:
-                    count = 0
-                    self.__commit_transaction(t, True)
+                if record_count > TRANSACTION_COUNT:
+                    record_count = 0
+                    commit_count += 1
+                    self.__commit_transaction(t, True, commit_count)
                     t = self.__new_transaction()
 
-            self.__commit_transaction(t, count != 0)
+            commit_count += 1
+            self.__commit_transaction(t, record_count != 0, commit_count)
         except Exception as error:
             if not self.debug:
                 raise error
@@ -113,9 +115,9 @@ class Updater(object):
                     data, tid = self.storage.load(oid, "")
                 except ZODB.POSException.POSKeyError as e:
                     logger.error(
-                        'Warning: Jumping record %s, '
-                        'referencing missing key in database: %s' %
-                        (ZODB.utils.oid_repr(oid), str(e)))
+                        'Warning: Jumping record {}, '
+                        'referencing missing key in database: {}'.format(
+                            (ZODB.utils.oid_repr(oid), str(e))))
                 else:
                     yield oid, tid, io.BytesIO(data)
 

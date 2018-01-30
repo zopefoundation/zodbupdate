@@ -16,6 +16,7 @@ import io
 import logging
 import types
 import sys
+import six
 import zodbpickle
 
 from ZODB.broken import find_global, Broken, rebuild
@@ -145,13 +146,13 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes, protocol=3, repickle_all=False):
+    def __init__(
+            self, renames, decoders, pickle_protocol=3, repickle_all=False):
         self.__added = dict()
-        self.__changes = dict()
-        for old, new in changes.items():
-            self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
+        self.__renames = renames
+        self.__decoders = decoders
         self.__changed = False
-        self.__protocol = protocol
+        self.__protocol = pickle_protocol
         self.__repickle_all = repickle_all
 
     def __update_symb(self, symb_info):
@@ -160,22 +161,21 @@ class ObjectRenamer(object):
         loaded and its location is checked to see if it have moved as
         well.
         """
-        if symb_info in self.__changes:
+        if symb_info in self.__renames:
             self.__changed = True
-            return self.__changes[symb_info]
+            return self.__renames[symb_info]
         else:
             symb = find_global(*symb_info, Broken=ZODBBroken)
             if is_broken(symb):
-                logger.warning(
-                    'Warning: Missing factory for %s' % ' '.join(symb_info))
+                logger.warning('Warning: Missing factory for {}'.format(
+                    ' '.join(symb_info)))
                 create_broken_module_for(symb)
             elif hasattr(symb, '__name__') and hasattr(symb, '__module__'):
                 new_symb_info = (symb.__module__, symb.__name__)
                 if new_symb_info != symb_info:
-                    logger.info(
-                        'New implicit rule detected %s to %s' %
-                        (' '.join(symb_info), ' '.join(new_symb_info)))
-                    self.__changes[symb_info] = new_symb_info
+                    logger.info('New implicit rule detected {} to {}'.format(
+                        ' '.join(symb_info), ' '.join(new_symb_info)))
+                    self.__renames[symb_info] = new_symb_info
                     self.__added[symb_info] = new_symb_info
                     self.__changed = True
                     return new_symb_info
@@ -232,6 +232,14 @@ class ObjectRenamer(object):
             return ZODBReference(zodbpickle.binary(oid))
         raise AssertionError('Unknown reference format.')
 
+    def __persistent_id(self, obj):
+        """Save the given object as a reference only if it was a
+        reference before. We re-use the same information.
+        """
+        if not isinstance(obj, ZODBReference):
+            return None
+        return obj.ref
+
     def __unpickler(self, input_file):
         """Create an unpickler with our custom global symbol loader
         and reference resolver.
@@ -240,14 +248,6 @@ class ObjectRenamer(object):
             input_file,
             self.__persistent_load,
             self.__find_global)
-
-    def __persistent_id(self, obj):
-        """Save the given object as a reference only if it was a
-        reference before. We re-use the same information.
-        """
-        if not isinstance(obj, ZODBReference):
-            return None
-        return obj.ref
 
     def __pickler(self, output_file):
         """Create a pickler able to save to the given file, objects we
@@ -272,6 +272,25 @@ class ObjectRenamer(object):
                 return self.__update_symb(symb), args
         return class_meta
 
+    def __decode_data(self, class_meta, data):
+        if not self.__decoders:
+            return
+        key = None
+        if isinstance(class_meta, six.class_types):
+            key = (class_meta.__module__, class_meta.__name__)
+        elif isinstance(class_meta, tuple):
+            symb, args = class_meta
+            if isinstance(symb, six.class_types):
+                key = (symb.__module__, symb.__name__)
+            elif isinstance(symb, tuple):
+                key = symb
+            else:
+                raise AssertionError('Unknown class format.')
+        else:
+            raise AssertionError('Unknown class format.')
+        for decoder in self.__decoders.get(key, []):
+            self.__changed = decoder(data) or self.__changed
+
     def rename(self, input_file):
         """Take a ZODB record (as a file object) as input. We load it,
         replace any reference to renamed class we know of. If any
@@ -285,6 +304,8 @@ class ObjectRenamer(object):
         data = unpickler.load()
 
         class_meta = self.__update_class_meta(class_meta)
+
+        self.__decode_data(class_meta, data)
 
         if not (self.__changed or self.__repickle_all):
             return None
@@ -303,8 +324,10 @@ class ObjectRenamer(object):
         output_file.truncate()
         return output_file
 
-    def get_found_implicit_rules(self):
-        result = {}
-        for old, new in self.__added.items():
-            result[' '.join(old)] = ' '.join(new)
-        return result
+    def get_rules(self, implicit=False, explicit=False):
+        rules = {}
+        if explicit:
+            rules.update(self.__renames)
+        if implicit:
+            rules.update(self.__added)
+        return rules
