@@ -16,6 +16,14 @@ import ZODB._compat
 import logging
 import six
 
+from ZODB.broken import Broken
+
+
+def is_broken(symb):
+    """Return true if the given symbol is broken.
+    """
+    return isinstance(symb, six.class_types) and Broken in symb.__mro__
+
 
 if six.PY3:
     import zodbpickle.pickle as pickle

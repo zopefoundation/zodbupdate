@@ -26,12 +26,6 @@ logger = logging.getLogger('zodbupdate')
 known_broken_modules = {}
 
 
-def is_broken(symb):
-    """Return true if the given symbol is broken.
-    """
-    return isinstance(symb, six.class_types) and Broken in symb.__mro__
-
-
 def create_broken_module_for(symb):
     """If your pickle refer a broken class (not an instance of it, a
        reference to the class symbol itself) you have no choice than
@@ -123,7 +117,7 @@ class ZODBBroken(Broken):
         """
         return (rebuild,
                 ((self.__class__.__module__, self.__class__.__name__)
-                 + getattr(self, '__Broken_newargs__', ())),
+                 + getattr(self, '__Broken_newargs__', tuple())),
                 self.__Broken_state__)
 
 
@@ -166,7 +160,7 @@ class ObjectRenamer(object):
             return self.__renames[symb_info]
         else:
             symb = find_global(*symb_info, Broken=ZODBBroken)
-            if is_broken(symb):
+            if utils.is_broken(symb):
                 logger.warning('Warning: Missing factory for {}'.format(
                     ' '.join(symb_info)))
                 create_broken_module_for(symb)
@@ -262,7 +256,7 @@ class ObjectRenamer(object):
         """
         if isinstance(class_meta, tuple):
             symb, args = class_meta
-            if is_broken(symb):
+            if utils.is_broken(symb):
                 symb_info = (symb.__module__, symb.__name__)
                 logger.warning(
                     'Warning: Missing factory for {}'.format(
