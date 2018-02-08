@@ -96,6 +96,49 @@ class Tests(unittest.TestCase):
         os.unlink(self.dbfile + '.tmp')
         os.unlink(self.dbfile + '.lock')
 
+    def test_no_transaction_if_no_changes(self):
+        # If an update run doesn't produce any changes it won't commit the
+        # transaction to avoid superfluous clutter in the DB.
+        last = self.storage.lastTransaction()
+        updater = self.update()
+        self.assertEqual(last, self.storage.lastTransaction())
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_registered_with_copy_reg(self):
+        # Factories registered with copy_reg.pickle loose their __name__.
+        # We simply ignore those.
+        from six.moves import copyreg
+
+        class AnonymousFactory(object):
+
+            def __new__(cls, name):
+                return object.__new__(cls)
+
+            def __init__(self, name):
+                self._name = name
+
+            def getName(self):
+                return self._name
+
+        sys.modules['module1'].AnonymousFactory = AnonymousFactory
+        sys.modules['module1'].AnonymousFactory.__module__ = 'module1'
+        sys.modules['module1'].Anonymous = AnonymousFactory('Anonymous')
+        copyreg.pickle(AnonymousFactory,
+                       AnonymousFactory.getName,
+                       AnonymousFactory)
+        self.root['test'] = sys.modules['module1'].Anonymous
+        transaction.commit()
+
+        updater = self.update()
+
+        self.assertEqual('module1', self.root['test'].__class__.__module__)
+        self.assertEqual(
+            'AnonymousFactory',
+            self.root['test'].__class__.__name__)
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
 
 class Python2Tests(Tests):
 
@@ -258,49 +301,6 @@ class Python2Tests(Tests):
             {('module1', 'Factory'): ('module1', 'NewFactory')},
             renames)
 
-    def test_factory_registered_with_copy_reg(self):
-        # Factories registered with copy_reg.pickle loose their __name__.
-        # We simply ignore those.
-
-        class AnonymousFactory(object):
-
-            def __new__(cls, name):
-                return object.__new__(cls)
-
-            def __init__(self, name):
-                self._name = name
-
-            def getName(self):
-                return self._name
-
-        sys.modules['module1'].AnonymousFactory = AnonymousFactory
-        sys.modules['module1'].AnonymousFactory.__module__ = 'module1'
-        sys.modules['module1'].Anonymous = AnonymousFactory('Anonymous')
-        import copy_reg
-        copy_reg.pickle(AnonymousFactory,
-                        AnonymousFactory.getName,
-                        AnonymousFactory)
-        self.root['test'] = sys.modules['module1'].Anonymous
-        transaction.commit()
-
-        updater = self.update()
-
-        self.assertEqual('module1', self.root['test'].__class__.__module__)
-        self.assertEqual(
-            'AnonymousFactory',
-            self.root['test'].__class__.__name__)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_no_transaction_if_no_changes(self):
-        # If an update run doesn't produce any changes it won't commit the
-        # transaction to avoid superfluous clutter in the DB.
-        last = self.storage.lastTransaction()
-        updater = self.update()
-        self.assertEqual(last, self.storage.lastTransaction())
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
     def test_loaded_renames_override_automatic(self):
         # Same as test_factory_renamed, but provide a pre-defined rename
         # dictionary whose rules will result in a different class being picked
@@ -340,8 +340,131 @@ class Python2Tests(Tests):
         self.assertEqual({}, renames)
 
 
+class Python3Tests(Tests):
+
+    def test_convert_to_py3(self):
+        test = sys.modules['module1'].Factory()
+        self.root['test'] = test
+        transaction.commit()
+
+        # You are already using python 3
+        with self.assertRaises(AssertionError):
+            self.update(convert_py3=True)
+
+    def test_factory_ignore_missing(self):
+        # Create a ZODB with an object referencing a factory, then
+        # remove the factory and update the ZODB.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+        del sys.modules['module1'].Factory
+
+        updater = self.update()
+
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(
+            isinstance(self.root['test'], ZODB.broken.PersistentBroken))
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 Factory',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_renamed(self):
+        # Create a ZODB with an object referencing a factory, then
+        # rename the the factory but keep a reference from the old name in
+        # place. Update the ZODB. Then remove the old reference. We should
+        # then still be able to access the object.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        updater = self.update(debug=True)
+
+        self.assertEqual(
+            b'\x80\x03cmodule1\nNewFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual('module1', self.root['test'].__class__.__module__)
+        self.assertEqual('NewFactory', self.root['test'].__class__.__name__)
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual(
+            {('module1', 'Factory'): ('module1', 'NewFactory')},
+            renames)
+
+    def test_factory_renamed_dryrun(self):
+        # Run an update with "dy run" option and see that the pickle is
+        # not updated.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        updater = self.update(dry_run=True)
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual(
+            {('module1', 'Factory'): ('module1', 'NewFactory')},
+            renames)
+
+        updater = self.update(dry_run=False)
+        self.assertEqual(
+            b'\x80\x03cmodule1\nNewFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual(
+            {('module1', 'Factory'): ('module1', 'NewFactory')},
+            renames)
+
+    def test_loaded_renames_override_automatic(self):
+        # Same as test_factory_renamed, but provide a pre-defined rename
+        # dictionary whose rules will result in a different class being picked
+        # than what automatic detection would have done.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
+        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
+
+        updater = self.update(
+            default_renames={
+                ('module1', 'Factory'): ('module2', 'OtherFactory')})
+
+        self.assertEqual(
+            b'\x80\x03cmodule2\nOtherFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_loaded_renames_override_missing(self):
+        # Same as test_factory_missing, but provide a pre-defined rename
+        # dictionary whose rules will result in a different class being picked
+        # than what automatic detection would have done.
+        self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        del sys.modules['module1'].Factory
+        updater = self.update(
+            default_renames={
+                ('module1', 'Factory'): ('module2', 'OtherFactory')})
+
+        self.assertEqual(
+            b'\x80\x03cmodule2\nOtherFactory\nq\x00.\x80\x03}q\x01.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+
 def test_suite():
     suite = unittest.TestSuite()
     if six.PY2:
         suite.addTest(unittest.makeSuite(Python2Tests))
+    if six.PY3:
+        suite.addTest(unittest.makeSuite(Python3Tests))
     return suite

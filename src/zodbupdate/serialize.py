@@ -84,15 +84,15 @@ class BrokenModuleFinder(object):
 sys.meta_path.append(BrokenModuleFinder())
 
 
-class NullIterator(object):
+class NullIterator(six.Iterator):
     """An empty iterator that doesn't gives any result.
     """
 
     def __iter__(self):
         return self
 
-    def next(self):
-        raise StopIteration
+    def __next__(self):
+        raise StopIteration()
 
 
 class IterableClass(type):
@@ -105,12 +105,12 @@ class IterableClass(type):
         return NullIterator()
 
 
+@six.add_metaclass(IterableClass)
 class ZODBBroken(Broken):
     """Extend ZODB Broken to work with broken objects that doesn't
     have any __Broken_newargs__ sets (which happens if their __new__
     method is not called).
     """
-    __metaclass__ = IterableClass
 
     def __reduce__(self):
         """We pickle broken objects in hope of being able to fix them later.
