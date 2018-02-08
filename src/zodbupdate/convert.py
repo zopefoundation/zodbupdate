@@ -49,6 +49,7 @@ class Time(datetime.time):
 
 def default_renames():
     return {
+        ('copy_reg', '_reconstructor'): ('copyreg', '_reconstructor'),
         ('datetime', 'datetime'): ('zodbupdate.convert', 'Datetime'),
         ('datetime', 'date'): ('zodbupdate.convert', 'Date'),
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}

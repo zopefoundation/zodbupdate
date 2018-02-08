@@ -4,7 +4,13 @@ Changes
 0.6 (unreleased)
 ----------------
 
-- ...
+- Support Python 2.7 and 3.6.
+
+- The option to the select the pickler (``--pickler``) has been
+  removed. This was only useful if you had extension classes with
+  Python 2.5 or less.
+
+- Added an option to convert a database to Python 3.
 
 0.5 (2010-10-07)
 ----------------

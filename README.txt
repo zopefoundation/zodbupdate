@@ -73,7 +73,7 @@ And then running `zodbupdate` using:
 Pre-defined rename rules
 ------------------------
 
-Rename rules can be defined using entry points::
+Rename rules can be defined using an entry point called ``zodbupdate``::
 
     setup(...
           entry_points = """
@@ -81,10 +81,12 @@ Rename rules can be defined using entry points::
           renames = mypackage.mymodule:rename_dict
           """)
 
-Rename rules are dictionaries that map old class names to new class names::
+Those entry points must points to dictionaries that map old class
+names to new class names::
 
-    renames = {'mypackage.mymodule ClassName':
-               'otherpackage.othermodule OtherClass'}
+    rename_dict = {
+        'mypackage.mymodule ClassName':
+        'otherpackage.othermodule OtherClass'}
 
 As soon as you have rules defined, you can already remove the old
 import location mentioned in them.
@@ -98,6 +100,69 @@ users to use that option. If they never pack their storage, it is a good
 occasion).
 
 
+Migration to Python 3
+---------------------
+
+``zodbupdate`` can be used to migrate a database created with a Python
+2 application to be usable with the same application in Python 3. To
+accomplish this, you need to:
+
+1. Stop your application. Nothing should be written to the database
+   while the migration is running.
+
+2. Update your Python 2 application to use the latest ZODB version. It
+   will not work with ZODB 3.
+
+3. With Python 2, run ``zodbupdate --pack --convert-py3``.
+
+If you use a Data.fs we recommend you to use the ``-f`` option to
+specify your database. After the conversion the magic header of the
+database will be updated so that you will be able to open the database
+with Python 3.
+
+If you use a different storage (like RelStorage), be sure you will be
+connecting to it using your Python 3 application after the
+migration. You will still be able to connect to your database and use
+your application with Python 2 without errors, but then you will need
+to convert it again to Python 3.
+
+While the pack is not required, it is highly recommended.
+
+The conversion will take care of the following tasks:
+
+- Updating stored Python datetime, date and time objects to use
+  Python 3 bytes,
+
+- Updating ZODB references to use Python 3 bytes.
+
+- Optionally convert stored strings to either unicode or bytes pending
+  your configuration.
+
+If your application expect to use bytes in Python 3, they must be
+stored as such in the database, and all other strings must be stored
+as unicode string, if they contain other characters than ascii characters.
+
+When using ``--convert-py3``, ``zodbupdate`` will load a set of
+decoders from the entry points::
+
+    setup(...
+          entry_points = """
+          [zodbupdate.decode]
+          decodes = mypackage.mymodule:decode_dict
+          """)
+
+Decoders are dictionaries that specifies as keys attributes on
+Persistent classes that must either be encode as bytes (if the value
+is ``binary``) or decoded to unicode using value as encoding (for
+instance ``utf-8`` here)::
+
+    decode_dict = {
+       'mypackage.mymodule ClassName attribute': 'binary',
+       'otherpackage.othermodule OtherClass other_attribute': 'utf-8'}
+
+Please note that for the moment only attributes on Persistent classes
+are supported.
+
 Problems and solutions
 ----------------------
 
@@ -107,20 +172,10 @@ Your Data.fs has POSKey errors
 If you call `zodbupdate` with ``-f`` and the path to your Data.fs,
 records triggering those errors will be ignored.
 
-
-Your Data.fs is old, have been created with Zope 2 and you get strange errors
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Some special support for an old record format got removed from Python
-2.6. Running `zodbupdate` with the Python pickler (``-p Python``) will
-load those records and fix them.
-
-This will fix your Data.fs.
-
 You have an another error
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We recommand to run zodbupdate with ``-v -d -p Python`` to get the
+We recommand to run zodbupdate with ``-v -d`` to get the
 maximum of information.
 
 If you are working on big storages, you can use the option ``-o`` to
