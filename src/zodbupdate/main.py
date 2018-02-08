@@ -124,14 +124,14 @@ def create_updater(
     repickle_all = False
     pickle_protocol = zodbupdate.utils.DEFAULT_PROTOCOL
     if convert_py3:
-        pickle_protocol = 3
-        repickle_all = True
-        decoders.update(zodbupdate.convert.load_decoders())
-        renames.update(zodbupdate.convert.default_renames())
         if six.PY3:
             raise AssertionError(
                 'You can only convert a database to Python 3 format '
                 'from Python 2.')
+        pickle_protocol = 3
+        repickle_all = True
+        decoders.update(zodbupdate.convert.load_decoders())
+        renames.update(zodbupdate.convert.default_renames())
 
     return zodbupdate.update.Updater(
         storage,

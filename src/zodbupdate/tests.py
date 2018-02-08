@@ -23,6 +23,7 @@ import tempfile
 import transaction
 import types
 import unittest
+import six
 import zodbupdate.main
 
 
@@ -37,7 +38,7 @@ class LogFilter(object):
         return False
 
 
-class ZODBUpdateTests(unittest.TestCase):
+class Tests(unittest.TestCase):
 
     def setUp(self):
         self.log_messages = []
@@ -94,6 +95,45 @@ class ZODBUpdateTests(unittest.TestCase):
         os.unlink(self.dbfile + '.index')
         os.unlink(self.dbfile + '.tmp')
         os.unlink(self.dbfile + '.lock')
+
+
+class Python2Tests(Tests):
+
+    def test_convert_attribute_to_bytes(self):
+        from zodbupdate.convert import encode_binary
+
+        test = sys.modules['module1'].Factory()
+        test.binary = 'this looks like binary'
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True, default_decoders={
+            ('module1', 'Factory'): [encode_binary('binary')]})
+
+        # Protocol is 3 (x80x03) now and the string is encoded as
+        # bytes (C).
+        self.assertEqual(
+            '\x80\x03cmodule1\nFactory\nq\x01.'
+            '\x80\x03}q\x02U\x06binaryq\x03C\x16this looks like binarys.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_attribute_to_unicode(self):
+        from zodbupdate.convert import decode_attribute
+
+        test = sys.modules['module1'].Factory()
+        test.text = u'text élégant'.encode('utf-8')
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True, default_decoders={
+            ('module1', 'Factory'): [decode_attribute('text', 'utf-8')]})
+
+        # Protocol is 3 (x80x03) now and the string is encoded as unicode (X)
+        self.assertEqual(
+            '\x80\x03cmodule1\nFactory\nq\x01.'
+            '\x80\x03}q\x02U\x04textq\x03'
+            'X\x0e\x00\x00\x00text \xc3\xa9l\xc3\xa9gantq\x04s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
 
     def test_convert_object_references(self):
         test = sys.modules['module1'].Factory()
@@ -302,5 +342,6 @@ class ZODBUpdateTests(unittest.TestCase):
 
 def test_suite():
     suite = unittest.TestSuite()
-    suite.addTest(unittest.makeSuite(ZODBUpdateTests))
+    if six.PY2:
+        suite.addTest(unittest.makeSuite(Python2Tests))
     return suite
