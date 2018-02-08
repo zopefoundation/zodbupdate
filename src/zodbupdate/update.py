@@ -18,6 +18,7 @@ from struct import pack, unpack
 import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
+import six
 import io
 import logging
 import transaction
@@ -50,7 +51,7 @@ class Updater(object):
     def __new_transaction(self):
         t = transaction.Transaction()
         self.storage.tpc_begin(t)
-        t.note('Updated factory references using `zodbupdate`.')
+        t.note(six.u('Updated factory references using `zodbupdate`.'))
         return t
 
     def __commit_transaction(self, t, changed, commit_count):
