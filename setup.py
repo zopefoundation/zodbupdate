@@ -19,6 +19,10 @@ def read(x):
     return open(x).read()
 
 
+tests_require = [
+    'persistent',
+]
+
 setup(name='zodbupdate',
       author='Zope Developers',
       author_email='zodb-dev@zope.org',
@@ -40,6 +44,9 @@ setup(name='zodbupdate',
           'transaction',
           'zodbpickle',
       ],
+      test_suite='zodbupdate.tests.test_suite',
+      tests_require=tests_require,
+      extras_require={'test': tests_require},
       entry_points={
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
       })
