@@ -328,6 +328,25 @@ class Python2Tests(Tests):
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
+    def test_factory_ignore_missing_class(self):
+        factory = self.root['test'] = sys.modules['module2'].OtherFactory()
+        factory.data = sys.modules['module1'].Data
+        transaction.commit()
+        del sys.modules['module1']
+
+        updater = self.update()
+
+        self.assertEqual(
+            '\x80\x02cmodule2\nOtherFactory\nq\x01.'
+            '\x80\x02}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 Data',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
     def test_factory_ignore_missing_interface(self):
         factory = self.root['test'] = sys.modules['module1'].Factory()
         zope.interface.alsoProvides(factory, sys.modules['module1'].IFactory)
@@ -508,6 +527,25 @@ class Python3Tests(Tests):
             b'\x80\x03cmodule1\nFactory\nq\x00.'
             b'\x80\x03}q\x01X\x04\x00\x00\x00dataq\x02'
             b'cmodule1\nData\nq\x03)\x81q\x04s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 Data',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_class(self):
+        factory = self.root['test'] = sys.modules['module2'].OtherFactory()
+        factory.data = sys.modules['module1'].Data
+        transaction.commit()
+        del sys.modules['module1']
+
+        updater = self.update()
+
+        self.assertEqual(
+            b'\x80\x03cmodule2\nOtherFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x04\x00\x00\x00dataq\x02cmodule1\nData\nq\x03s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
