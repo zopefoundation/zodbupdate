@@ -24,6 +24,7 @@ import transaction
 import types
 import unittest
 import six
+import zope.interface
 import zodbupdate.main
 
 
@@ -48,6 +49,12 @@ class Tests(unittest.TestCase):
         sys.modules['module1'] = types.ModuleType('module1')
         sys.modules['module2'] = types.ModuleType('module2')
 
+        class IFactory(zope.interface.Interface):
+            pass
+
+        class Data(object):
+            pass
+
         class Factory(persistent.Persistent):
             pass
 
@@ -56,6 +63,10 @@ class Tests(unittest.TestCase):
 
         sys.modules['module1'].Factory = Factory
         Factory.__module__ = 'module1'
+        sys.modules['module1'].IFactory = IFactory
+        IFactory.__module__ = 'module1'
+        sys.modules['module1'].Data = Data
+        Data.__module__ = 'module1'
         sys.modules['module2'].OtherFactory = OtherFactory
         OtherFactory.__module__ = 'module2'
 
@@ -84,8 +95,10 @@ class Tests(unittest.TestCase):
 
     def tearDown(self):
         zodbupdate.update.logger.removeFilter(self.log_filter)
-        del sys.modules['module1']
-        del sys.modules['module2']
+        if 'module1' in sys.modules:
+            del sys.modules['module1']
+        if 'module2' in sys.modules:
+            del sys.modules['module2']
 
         self.conn.close()
         self.db.close()
@@ -212,6 +225,24 @@ class Python2Tests(Tests):
             'C\n\x07\xe2\x0c\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x05s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
 
+    def test_convert_date_to_py3(self):
+        import datetime
+
+        test = sys.modules['module1'].Factory()
+        test.date_of_birth = datetime.date(2018, 12, 12)
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and datetime payload is encoded
+        # as bytes (C).
+        self.assertEqual(
+            '\x80\x03cmodule1\nFactory\nq\x01.'
+            '\x80\x03}q\x02U\rdate_of_birthq\x03'
+            'cdatetime\ndate\nq\x04C\x04\x07\xe2\x0c\x0c\x85Rq\x05s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
     def test_convert_time_to_py3(self):
         import datetime
 
@@ -230,7 +261,7 @@ class Python2Tests(Tests):
             'C\x06\x0c\x0c\x00\x00\x00\x00\x85Rq\x05s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
 
-    def test_factory_ignore_missing(self):
+    def test_factory_ignore_missing_persistent(self):
         # Create a ZODB with an object referencing a factory, then
         # remove the factory and update the ZODB.
         self.root['test'] = sys.modules['module1'].Factory()
@@ -247,6 +278,73 @@ class Python2Tests(Tests):
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             'Warning: Missing factory for module1 Factory',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_reference(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        other = self.root['other'] = sys.modules['module2'].OtherFactory()
+        factory.other = other
+        transaction.commit()
+        del sys.modules['module2']
+
+        updater = self.update()
+
+        self.assertEqual(
+            '\x80\x02cmodule1\nFactory\nq\x01.'
+            '\x80\x02}q\x02U\x05otherq\x03'
+            'U\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x04'
+            'cmodule2\nOtherFactory\nq\x05\x86Qs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(
+            isinstance(self.root['other'], ZODB.broken.PersistentBroken))
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module2 OtherFactory',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_object(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        factory.data = sys.modules['module1'].Data()
+        transaction.commit()
+        del sys.modules['module1'].Data
+
+        updater = self.update()
+
+        self.assertEqual(
+            '\x80\x02cmodule1\nFactory\nq\x01.'
+            '\x80\x02}q\x02U\x04dataq\x03'
+            'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 Data',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_interface(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        zope.interface.alsoProvides(factory, sys.modules['module1'].IFactory)
+        transaction.commit()
+        del sys.modules['module1'].IFactory
+
+        updater = self.update()
+
+        self.assertEqual(
+            '\x80\x02cmodule1\nFactory\nq\x01.'
+            '\x80\x02}q\x02U\x0c__provides__q\x03'
+            'czope.interface.declarations\nProvides\nq\x04h\x01'
+            'cmodule1\nIFactory\nq\x05\x86q\x06Rq\x07s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 IFactory',
             self.log_messages[0])
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
@@ -351,7 +449,7 @@ class Python3Tests(Tests):
         with self.assertRaises(AssertionError):
             self.update(convert_py3=True)
 
-    def test_factory_ignore_missing(self):
+    def test_factory_ignore_missing_persistent(self):
         # Create a ZODB with an object referencing a factory, then
         # remove the factory and update the ZODB.
         self.root['test'] = sys.modules['module1'].Factory()
@@ -368,6 +466,73 @@ class Python3Tests(Tests):
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             'Warning: Missing factory for module1 Factory',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_reference(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        transaction.commit()
+
+        other = self.root['other'] = sys.modules['module2'].OtherFactory()
+        factory.other = other
+        transaction.commit()
+        del sys.modules['module2']
+
+        updater = self.update()
+
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x05\x00\x00\x00otherq\x02'
+            b'C\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x03'
+            b'cmodule2\nOtherFactory\nq\x04\x86q\x05Qs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(
+            isinstance(self.root['other'], ZODB.broken.PersistentBroken))
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module2 OtherFactory',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_object(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        factory.data = sys.modules['module1'].Data()
+        transaction.commit()
+        del sys.modules['module1'].Data
+
+        updater = self.update()
+
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x04\x00\x00\x00dataq\x02'
+            b'cmodule1\nData\nq\x03)\x81q\x04s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 Data',
+            self.log_messages[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_factory_ignore_missing_interface(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        zope.interface.alsoProvides(factory, sys.modules['module1'].IFactory)
+        transaction.commit()
+        del sys.modules['module1'].IFactory
+
+        updater = self.update()
+
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x0c\x00\x00\x00__provides__q\x02'
+            b'czope.interface.declarations\nProvides\nq\x03h\x00'
+            b'cmodule1\nIFactory\nq\x04\x86q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertTrue(len(self.log_messages))
+        self.assertEqual(
+            'Warning: Missing factory for module1 IFactory',
             self.log_messages[0])
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)

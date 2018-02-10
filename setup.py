@@ -21,6 +21,7 @@ def read(x):
 
 tests_require = [
     'persistent',
+    'zope.interface',
 ]
 
 setup(name='zodbupdate',
