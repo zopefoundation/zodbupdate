@@ -22,7 +22,7 @@ import zodbpickle
 from ZODB.broken import find_global, Broken, rebuild
 from zodbupdate import utils
 
-logger = logging.getLogger('zodbupdate')
+logger = logging.getLogger('zodbupdate.serialize')
 known_broken_modules = {}
 
 

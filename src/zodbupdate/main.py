@@ -67,7 +67,7 @@ parser.add_option(
 class DuplicateFilter(object):
 
     def __init__(self):
-        self.seen = set()
+        self.reset()
 
     def filter(self, record):
         if record.msg in self.seen:
@@ -75,21 +75,26 @@ class DuplicateFilter(object):
         self.seen.add(record.msg)
         return True
 
+    def reset(self):
+        self.seen = set()
+
 
 duplicate_filter = DuplicateFilter()
 
 
-def setup_logger(verbose=False, quiet=False):
+def setup_logger(verbose=False, quiet=False, handler=None):
+    logging.getLogger('zodbupdate.serialize').addFilter(duplicate_filter)
     if quiet:
         level = logging.ERROR
     elif verbose:
         level = logging.DEBUG
     else:
         level = logging.INFO
-
-    logging.getLogger().addHandler(logging.StreamHandler())
-    logging.getLogger().setLevel(level)
-    logger.addFilter(duplicate_filter)
+    if handler is None:
+        handler = logging.StreamHandler()
+    logger = logging.getLogger()
+    logger.setLevel(level)
+    logger.addHandler(handler)
     return logger
 
 

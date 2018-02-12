@@ -23,33 +23,41 @@ import tempfile
 import transaction
 import types
 import unittest
+import logging
 import six
 import zope.interface
 import zodbupdate.main
 
 
-class LogFilter(object):
+class TestLogHandler(object):
+    level = logging.DEBUG
 
     def __init__(self, msg_lst):
         self.msg_lst = msg_lst
 
-    # Do not spit out any logging, but record them
-    def filter(self, record):
-        self.msg_lst.append(record.msg)
-        return False
+    def handle(self, record):
+        if record.name == 'zodbupdate.serialize':
+            self.msg_lst.append(record.msg)
 
 
 class Tests(unittest.TestCase):
 
     def setUp(self):
         self.log_messages = []
-        self.log_filter = LogFilter(self.log_messages)
-        zodbupdate.update.logger.addFilter(self.log_filter)
+        self.log_handler = TestLogHandler(self.log_messages)
+        self.logger = zodbupdate.main.setup_logger(handler=self.log_handler)
 
         sys.modules['module1'] = types.ModuleType('module1')
+        sys.modules['module1.interfaces'] = types.ModuleType(
+            'module1.interfaces')
         sys.modules['module2'] = types.ModuleType('module2')
+        sys.modules['module2.interfaces'] = types.ModuleType(
+            'module2.interfaces')
 
         class IFactory(zope.interface.Interface):
+            pass
+
+        class IOtherFactory(zope.interface.Interface):
             pass
 
         class Data(object):
@@ -63,12 +71,16 @@ class Tests(unittest.TestCase):
 
         sys.modules['module1'].Factory = Factory
         Factory.__module__ = 'module1'
-        sys.modules['module1'].IFactory = IFactory
-        IFactory.__module__ = 'module1'
         sys.modules['module1'].Data = Data
         Data.__module__ = 'module1'
+        sys.modules['module1'].interfaces = sys.modules['module1.interfaces']
+        sys.modules['module1.interfaces'].IFactory = IFactory
+        IFactory.__module__ = 'module1.interfaces'
         sys.modules['module2'].OtherFactory = OtherFactory
         OtherFactory.__module__ = 'module2'
+        sys.modules['module2'].interfaces = sys.modules['module2.interfaces']
+        sys.modules['module2.interfaces'].IOtherFactory = IOtherFactory
+        IOtherFactory.__module__ = 'module2.interfaces'
 
         self.tmphnd, self.dbfile = tempfile.mkstemp()
 
@@ -94,11 +106,17 @@ class Tests(unittest.TestCase):
         return updater
 
     def tearDown(self):
-        zodbupdate.update.logger.removeFilter(self.log_filter)
+        self.logger.removeHandler(self.log_handler)
+        zodbupdate.main.duplicate_filter.reset()
+
         if 'module1' in sys.modules:
             del sys.modules['module1']
+        if 'module1.interfaces' in sys.modules:
+            del sys.modules['module1.interfaces']
         if 'module2' in sys.modules:
             del sys.modules['module2']
+        if 'module2.interfaces' in sys.modules:
+            del sys.modules['module2.interfaces']
 
         self.conn.close()
         self.db.close()
@@ -277,8 +295,8 @@ class Python2Tests(Tests):
             isinstance(self.root['test'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Factory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Factory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -303,8 +321,8 @@ class Python2Tests(Tests):
             isinstance(self.root['other'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module2 OtherFactory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module2 OtherFactory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -323,8 +341,8 @@ class Python2Tests(Tests):
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Data',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Data'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -342,16 +360,18 @@ class Python2Tests(Tests):
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Data',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Data'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
     def test_factory_ignore_missing_interface(self):
         factory = self.root['test'] = sys.modules['module1'].Factory()
-        zope.interface.alsoProvides(factory, sys.modules['module1'].IFactory)
+        zope.interface.alsoProvides(
+            factory, sys.modules['module1.interfaces'].IFactory)
         transaction.commit()
-        del sys.modules['module1'].IFactory
+        del sys.modules['module1']
+        del sys.modules['module1.interfaces']
 
         updater = self.update()
 
@@ -359,12 +379,13 @@ class Python2Tests(Tests):
             '\x80\x02cmodule1\nFactory\nq\x01.'
             '\x80\x02}q\x02U\x0c__provides__q\x03'
             'czope.interface.declarations\nProvides\nq\x04h\x01'
-            'cmodule1\nIFactory\nq\x05\x86q\x06Rq\x07s.',
+            'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 IFactory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Factory',
+             'Warning: Missing factory for module1.interfaces IFactory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -438,10 +459,7 @@ class Python2Tests(Tests):
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
-    def test_loaded_renames_override_missing(self):
-        # Same as test_factory_missing, but provide a pre-defined rename
-        # dictionary whose rules will result in a different class being picked
-        # than what automatic detection would have done.
+    def test_loaded_renames_override_missing_persistent(self):
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
 
@@ -453,6 +471,33 @@ class Python2Tests(Tests):
         self.assertEqual(
             '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
             self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_loaded_renames_override_missing_interfaces(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        zope.interface.alsoProvides(
+            factory, sys.modules['module1.interfaces'].IFactory)
+        transaction.commit()
+        del sys.modules['module1'].interfaces
+        del sys.modules['module1.interfaces']
+
+        updater = self.update(
+            default_renames={
+                ('module1.interfaces', 'IFactory'):
+                ('module2.interfaces', 'IOtherFactory'),
+                ('module1', 'Factory'):
+                ('module2', 'OtherFactory')})
+
+        self.assertEqual(
+            '\x80\x02cmodule2\nOtherFactory\nq\x01.'
+            '\x80\x02}q\x02U\x0c__provides__q\x03'
+            'czope.interface.declarations\nProvides\nq\x04h\x01'
+            'cmodule2.interfaces\nIOtherFactory\nq\x05\x86q\x06Rq\x07s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual(
+            [],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -484,8 +529,8 @@ class Python3Tests(Tests):
             isinstance(self.root['test'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Factory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Factory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -510,8 +555,8 @@ class Python3Tests(Tests):
             isinstance(self.root['other'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module2 OtherFactory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module2 OtherFactory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -530,8 +575,8 @@ class Python3Tests(Tests):
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Data',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Data'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -549,16 +594,18 @@ class Python3Tests(Tests):
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 Data',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Data'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
     def test_factory_ignore_missing_interface(self):
         factory = self.root['test'] = sys.modules['module1'].Factory()
-        zope.interface.alsoProvides(factory, sys.modules['module1'].IFactory)
+        zope.interface.alsoProvides(
+            factory, sys.modules['module1.interfaces'].IFactory)
         transaction.commit()
-        del sys.modules['module1'].IFactory
+        del sys.modules['module1']
+        del sys.modules['module1.interfaces']
 
         updater = self.update()
 
@@ -566,12 +613,13 @@ class Python3Tests(Tests):
             b'\x80\x03cmodule1\nFactory\nq\x00.'
             b'\x80\x03}q\x01X\x0c\x00\x00\x00__provides__q\x02'
             b'czope.interface.declarations\nProvides\nq\x03h\x00'
-            b'cmodule1\nIFactory\nq\x04\x86q\x05Rq\x06s.',
+            b'cmodule1.interfaces\nIFactory\nq\x04\x86q\x05Rq\x06s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
-            'Warning: Missing factory for module1 IFactory',
-            self.log_messages[0])
+            ['Warning: Missing factory for module1 Factory',
+             'Warning: Missing factory for module1.interfaces IFactory'],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -645,10 +693,7 @@ class Python3Tests(Tests):
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
-    def test_loaded_renames_override_missing(self):
-        # Same as test_factory_missing, but provide a pre-defined rename
-        # dictionary whose rules will result in a different class being picked
-        # than what automatic detection would have done.
+    def test_loaded_renames_override_missing_persistent(self):
         self.root['test'] = sys.modules['module1'].Factory()
         transaction.commit()
 
@@ -660,6 +705,33 @@ class Python3Tests(Tests):
         self.assertEqual(
             b'\x80\x03cmodule2\nOtherFactory\nq\x00.\x80\x03}q\x01.',
             self.storage.load(self.root['test']._p_oid, '')[0])
+        renames = updater.processor.get_rules(implicit=True)
+        self.assertEqual({}, renames)
+
+    def test_loaded_renames_override_missing_interfaces(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        zope.interface.alsoProvides(
+            factory, sys.modules['module1.interfaces'].IFactory)
+        transaction.commit()
+        del sys.modules['module1'].interfaces
+        del sys.modules['module1.interfaces']
+
+        updater = self.update(
+            default_renames={
+                ('module1.interfaces', 'IFactory'):
+                ('module2.interfaces', 'IOtherFactory'),
+                ('module1', 'Factory'):
+                ('module2', 'OtherFactory')})
+
+        self.assertEqual(
+            b'\x80\x03cmodule2\nOtherFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x0c\x00\x00\x00__provides__q\x02'
+            b'czope.interface.declarations\nProvides\nq\x03h\x00'
+            b'cmodule2.interfaces\nIOtherFactory\nq\x04\x86q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertEqual(
+            [],
+            self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
