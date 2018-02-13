@@ -12,23 +12,18 @@
 #
 ##############################################################################
 
-import cPickle
-import cStringIO
+import io
 import logging
 import types
 import sys
+import six
+import zodbpickle
 
 from ZODB.broken import find_global, Broken, rebuild
 from zodbupdate import utils
 
-logger = logging.getLogger('zodbupdate')
+logger = logging.getLogger('zodbupdate.serialize')
 known_broken_modules = {}
-
-
-def is_broken(symb):
-    """Return true if the given symbol is broken.
-    """
-    return isinstance(symb, types.TypeType) and Broken in symb.__mro__
 
 
 def create_broken_module_for(symb):
@@ -42,7 +37,8 @@ def create_broken_module_for(symb):
     parts = symb.__module__.split('.')
     previous = None
     for fullname, name in reversed(
-        [('.'.join(parts[0:p+1]), parts[p]) for p in range(1, len(parts))]):
+            [('.'.join(parts[0:p+1]), parts[p])
+             for p in range(1, len(parts))]):
         if fullname not in sys.modules:
             if fullname not in known_broken_modules:
                 module = types.ModuleType(fullname)
@@ -88,15 +84,15 @@ class BrokenModuleFinder(object):
 sys.meta_path.append(BrokenModuleFinder())
 
 
-class NullIterator(object):
+class NullIterator(six.Iterator):
     """An empty iterator that doesn't gives any result.
     """
 
     def __iter__(self):
         return self
 
-    def next(self):
-        raise StopIteration
+    def __next__(self):
+        raise StopIteration()
 
 
 class IterableClass(type):
@@ -109,19 +105,19 @@ class IterableClass(type):
         return NullIterator()
 
 
+@six.add_metaclass(IterableClass)
 class ZODBBroken(Broken):
     """Extend ZODB Broken to work with broken objects that doesn't
     have any __Broken_newargs__ sets (which happens if their __new__
     method is not called).
     """
-    __metaclass__ = IterableClass
 
     def __reduce__(self):
         """We pickle broken objects in hope of being able to fix them later.
         """
         return (rebuild,
                 ((self.__class__.__module__, self.__class__.__name__)
-                 + getattr(self, '__Broken_newargs__', ())),
+                 + getattr(self, '__Broken_newargs__', tuple())),
                 self.__Broken_state__)
 
 
@@ -144,13 +140,14 @@ class ObjectRenamer(object):
     - in class information (first pickle of the record).
     """
 
-    def __init__(self, changes, pickler_name='C'):
+    def __init__(
+            self, renames, decoders, pickle_protocol=3, repickle_all=False):
         self.__added = dict()
-        self.__changes = dict()
-        for old, new in changes.iteritems():
-            self.__changes[tuple(old.split(' '))] = tuple(new.split(' '))
+        self.__renames = renames
+        self.__decoders = decoders
         self.__changed = False
-        self.__pickler_name = pickler_name
+        self.__protocol = pickle_protocol
+        self.__repickle_all = repickle_all
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -158,22 +155,21 @@ class ObjectRenamer(object):
         loaded and its location is checked to see if it have moved as
         well.
         """
-        if symb_info in self.__changes:
+        if symb_info in self.__renames:
             self.__changed = True
-            return self.__changes[symb_info]
+            return self.__renames[symb_info]
         else:
             symb = find_global(*symb_info, Broken=ZODBBroken)
-            if is_broken(symb):
-                logger.warning(
-                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
+            if utils.is_broken(symb):
+                logger.warning('Warning: Missing factory for {}'.format(
+                    ' '.join(symb_info)))
                 create_broken_module_for(symb)
             elif hasattr(symb, '__name__') and hasattr(symb, '__module__'):
                 new_symb_info = (symb.__module__, symb.__name__)
                 if new_symb_info != symb_info:
-                    logger.info(
-                        u'New implicit rule detected %s to %s' %
-                        (u' '.join(symb_info), u' '.join(new_symb_info)))
-                    self.__changes[symb_info] = new_symb_info
+                    logger.info('New implicit rule detected {} to {}'.format(
+                        ' '.join(symb_info), ' '.join(new_symb_info)))
+                    self.__renames[symb_info] = new_symb_info
                     self.__added[symb_info] = new_symb_info
                     self.__changed = True
                     return new_symb_info
@@ -193,26 +189,42 @@ class ObjectRenamer(object):
         represent that reference, and not the real object designated
         by the reference.
         """
+        # This takes care of returning the OID as bytes in order to convert
+        # a database to Python 3.
         if isinstance(reference, tuple):
-            oid, klass_info = reference
-            if isinstance(klass_info, tuple):
-                klass_info = self.__update_symb(klass_info)
-            return ZODBReference((oid, klass_info))
+            oid, cls_info = reference
+            if isinstance(cls_info, tuple):
+                cls_info = self.__update_symb(cls_info)
+            return ZODBReference(
+                (zodbpickle.binary(oid), cls_info))
         if isinstance(reference, list):
+            if len(reference) == 1:
+                oid, = reference
+                return ZODBReference(
+                    ['w', (zodbpickle.binary(oid))])
             mode, information = reference
             if mode == 'm':
-                database_name, oid, klass_info = information
-                if isinstance(klass_info, tuple):
-                    klass_info = self.__update_symb(klass_info)
-                return ZODBReference(['m', (database_name, oid, klass_info)])
-        return ZODBReference(reference)
-
-    def __unpickler(self, input_file):
-        """Create an unpickler with our custom global symbol loader
-        and reference resolver.
-        """
-        return utils.UNPICKLERS[self.__pickler_name](
-            input_file, self.__persistent_load, self.__find_global)
+                database_name, oid, cls_info = information
+                if isinstance(cls_info, tuple):
+                    cls_info = self.__update_symb(cls_info)
+                return ZODBReference(
+                    ['m', (database_name, zodbpickle.binary(oid), cls_info)])
+            if mode == 'n':
+                database_name, oid = information
+                return ZODBReference(
+                    ['m', (database_name, zodbpickle.binary(oid))])
+            if mode == 'w':
+                if len(information) == 1:
+                    oid, = information
+                    return ZODBReference(
+                        ['w', (zodbpickle.binary(oid))])
+                oid, database_name = information
+                return ZODBReference(
+                    ['w', (zodbpickle.binary(oid), database_name)])
+        if isinstance(reference, (str, zodbpickle.binary)):
+            oid = reference
+            return ZODBReference(zodbpickle.binary(oid))
+        raise AssertionError('Unknown reference format.')
 
     def __persistent_id(self, obj):
         """Save the given object as a reference only if it was a
@@ -222,13 +234,21 @@ class ObjectRenamer(object):
             return None
         return obj.ref
 
+    def __unpickler(self, input_file):
+        """Create an unpickler with our custom global symbol loader
+        and reference resolver.
+        """
+        return utils.Unpickler(
+            input_file,
+            self.__persistent_load,
+            self.__find_global)
+
     def __pickler(self, output_file):
         """Create a pickler able to save to the given file, objects we
         loaded while paying attention to any reference we loaded.
         """
-        pickler = cPickle.Pickler(output_file, 1)
-        pickler.persistent_id = self.__persistent_id
-        return pickler
+        return utils.Pickler(
+            output_file, self.__persistent_id, self.__protocol)
 
     def __update_class_meta(self, class_meta):
         """Update class information, which can contain information
@@ -236,14 +256,34 @@ class ObjectRenamer(object):
         """
         if isinstance(class_meta, tuple):
             symb, args = class_meta
-            if is_broken(symb):
+            if utils.is_broken(symb):
                 symb_info = (symb.__module__, symb.__name__)
                 logger.warning(
-                    u'Warning: Missing factory for %s' % u' '.join(symb_info))
+                    'Warning: Missing factory for {}'.format(
+                        ' '.join(symb_info)))
                 return (symb_info, args)
             elif isinstance(symb, tuple):
                 return self.__update_symb(symb), args
         return class_meta
+
+    def __decode_data(self, class_meta, data):
+        if not self.__decoders:
+            return
+        key = None
+        if isinstance(class_meta, six.class_types):
+            key = (class_meta.__module__, class_meta.__name__)
+        elif isinstance(class_meta, tuple):
+            symb, args = class_meta
+            if isinstance(symb, six.class_types):
+                key = (symb.__module__, symb.__name__)
+            elif isinstance(symb, tuple):
+                key = symb
+            else:
+                raise AssertionError('Unknown class format.')
+        else:
+            raise AssertionError('Unknown class format.')
+        for decoder in self.__decoders.get(key, []):
+            self.__changed = decoder(data) or self.__changed
 
     def rename(self, input_file):
         """Take a ZODB record (as a file object) as input. We load it,
@@ -259,26 +299,29 @@ class ObjectRenamer(object):
 
         class_meta = self.__update_class_meta(class_meta)
 
-        if not (self.__changed or
-                (hasattr(unpickler, 'need_repickle') and
-                 unpickler.need_repickle())):
+        self.__decode_data(class_meta, data)
+
+        if not (self.__changed or self.__repickle_all):
             return None
 
-        output_file = cStringIO.StringIO()
+        output_file = io.BytesIO()
         pickler = self.__pickler(output_file)
         try:
             pickler.dump(class_meta)
             pickler.dump(data)
-        except cPickle.PicklingError, error:
-            logger.error('Error: cannot pickling modified record: %s' % error)
+        except utils.PicklingError as error:
+            logger.error(
+                'Error: cannot pickling modified record: {}'.format(error))
             # Could not pickle that record, skip it.
             return None
 
         output_file.truncate()
         return output_file
 
-    def get_found_implicit_rules(self):
-        result = {}
-        for old, new in self.__added.items():
-            result[' '.join(old)] = ' '.join(new)
-        return result
+    def get_rules(self, implicit=False, explicit=False):
+        rules = {}
+        if explicit:
+            rules.update(self.__renames)
+        if implicit:
+            rules.update(self.__added)
+        return rules
