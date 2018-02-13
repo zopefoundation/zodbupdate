@@ -31,9 +31,9 @@ setup(name='zodbupdate',
       license='ZPL 2.1',
       description='Update ZODB class references for moved or renamed classes.',
       long_description=(
-        read('README.txt')
+        read('README.rst')
         + '\n' +
-        read('CHANGES.txt')),
+        read('CHANGES.rst')),
       version='1.1.dev0',
       package_dir={'': 'src'},
       packages=find_packages('src'),
