@@ -5,10 +5,15 @@ python:
     - 3.5
     - 3.6
     - pypy3
+matrix:
+  include:
+    - python: 2.7
+      env: OLDZODB=true
 install:
     - pip install -U pip setuptools
     - pip install -U zope.testrunner coverage coveralls
     - pip install -U -e .[test]
+    - if [[ $OLDZODB == true ]]; then pip install 'ZODB < 5.4'; fi
 script:
     - coverage run -m zope.testrunner --test-path=src
 after_success:
