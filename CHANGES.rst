@@ -4,7 +4,8 @@ Changes
 1.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Fix tests on Python 2 with ZODB >= 5.4.0, which now uses pickle
+  protocol 3.
 
 
 1.0 (2018-02-13)

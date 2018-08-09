@@ -288,9 +288,15 @@ class Python2Tests(Tests):
 
         updater = self.update()
 
-        self.assertEqual(
-            '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.\x80\x03}q\x02.',
+            )
+        )
         self.assertTrue(
             isinstance(self.root['test'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
@@ -311,12 +317,22 @@ class Python2Tests(Tests):
 
         updater = self.update()
 
-        self.assertEqual(
-            '\x80\x02cmodule1\nFactory\nq\x01.'
-            '\x80\x02}q\x02U\x05otherq\x03'
-            'U\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x04'
-            'cmodule2\nOtherFactory\nq\x05\x86Qs.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.'
+                '\x80\x02}q\x02U\x05otherq\x03'
+                'U\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x04'
+                'cmodule2\nOtherFactory\nq\x05\x86Qs.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.'
+                '\x80\x03}q\x02U\x05otherq\x03'
+                'C\x08\x00\x00\x00\x00\x00\x00\x00\x02'
+                'cmodule2\nOtherFactory\nq\x04\x86Qs.',
+            )
+        )
+
         self.assertTrue(
             isinstance(self.root['other'], ZODB.broken.PersistentBroken))
         self.assertTrue(len(self.log_messages))
@@ -334,11 +350,19 @@ class Python2Tests(Tests):
 
         updater = self.update()
 
-        self.assertEqual(
-            '\x80\x02cmodule1\nFactory\nq\x01.'
-            '\x80\x02}q\x02U\x04dataq\x03'
-            'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.'
+                '\x80\x02}q\x02U\x04dataq\x03'
+                'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.'
+                '\x80\x03}q\x02U\x04dataq\x03'
+                'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
+            )
+        )
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             ['Warning: Missing factory for module1 Data'],
@@ -354,10 +378,17 @@ class Python2Tests(Tests):
 
         updater = self.update()
 
-        self.assertEqual(
-            '\x80\x02cmodule2\nOtherFactory\nq\x01.'
-            '\x80\x02}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule2\nOtherFactory\nq\x01.'
+                '\x80\x02}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule2\nOtherFactory\nq\x01.'
+                '\x80\x03}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
+            )
+        )
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             ['Warning: Missing factory for module1 Data'],
@@ -375,12 +406,21 @@ class Python2Tests(Tests):
 
         updater = self.update()
 
-        self.assertEqual(
-            '\x80\x02cmodule1\nFactory\nq\x01.'
-            '\x80\x02}q\x02U\x0c__provides__q\x03'
-            'czope.interface.declarations\nProvides\nq\x04h\x01'
-            'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.'
+                '\x80\x02}q\x02U\x0c__provides__q\x03'
+                'czope.interface.declarations\nProvides\nq\x04h\x01'
+                'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
+                # ZODb >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.'
+                '\x80\x03}q\x02U\x0c__provides__q\x03'
+                'czope.interface.declarations\nProvides\nq\x04h\x01'
+                'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
+            )
+        )
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             ['Warning: Missing factory for module1 Factory',
@@ -402,9 +442,16 @@ class Python2Tests(Tests):
 
         updater = self.update(debug=True)
 
-        self.assertEqual(
-            '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nNewFactory\nq\x01.\x80\x03}q\x02.',
+            )
+        )
+
         self.assertEqual('module1', self.root['test'].__class__.__module__)
         self.assertEqual('NewFactory', self.root['test'].__class__.__name__)
         renames = updater.processor.get_rules(implicit=True)
@@ -422,18 +469,32 @@ class Python2Tests(Tests):
         sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
 
         updater = self.update(dry_run=True)
-        self.assertEqual(
-            '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.\x80\x03}q\x02.',
+            )
+        )
+
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual(
             {('module1', 'Factory'): ('module1', 'NewFactory')},
             renames)
 
         updater = self.update(dry_run=False)
-        self.assertEqual(
-            '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nNewFactory\nq\x01.\x80\x03}q\x02.',
+            )
+        )
+
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual(
             {('module1', 'Factory'): ('module1', 'NewFactory')},
@@ -453,9 +514,16 @@ class Python2Tests(Tests):
             default_renames={
                 ('module1', 'Factory'): ('module2', 'OtherFactory')})
 
-        self.assertEqual(
-            '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule2\nOtherFactory\nq\x01.\x80\x03}q\x02.',
+            )
+        )
+
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -468,9 +536,16 @@ class Python2Tests(Tests):
             default_renames={
                 ('module1', 'Factory'): ('module2', 'OtherFactory')})
 
-        self.assertEqual(
-            '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
+                # ZODB >= 5.4
+                '\x80\x03cmodule2\nOtherFactory\nq\x01.\x80\x03}q\x02.'
+            )
+        )
+
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
@@ -489,12 +564,21 @@ class Python2Tests(Tests):
                 ('module1', 'Factory'):
                 ('module2', 'OtherFactory')})
 
-        self.assertEqual(
-            '\x80\x02cmodule2\nOtherFactory\nq\x01.'
-            '\x80\x02}q\x02U\x0c__provides__q\x03'
-            'czope.interface.declarations\nProvides\nq\x04h\x01'
-            'cmodule2.interfaces\nIOtherFactory\nq\x05\x86q\x06Rq\x07s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4.0
+                '\x80\x02cmodule2\nOtherFactory\nq\x01.'
+                '\x80\x02}q\x02U\x0c__provides__q\x03'
+                'czope.interface.declarations\nProvides\nq\x04h\x01'
+                'cmodule2.interfaces\nIOtherFactory\nq\x05\x86q\x06Rq\x07s.',
+                # ZODB >= 5.4.0
+                '\x80\x03cmodule2\nOtherFactory\nq\x01.'
+                '\x80\x03}q\x02U\x0c__provides__q\x03'
+                'czope.interface.declarations\nProvides\nq\x04h\x01'
+                'cmodule2.interfaces\nIOtherFactory\nq\x05\x86q\x06Rq\x07s.',
+            )
+        )
         self.assertEqual(
             [],
             self.log_messages)
