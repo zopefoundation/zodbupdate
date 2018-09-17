@@ -7,6 +7,8 @@ Changes
 - Fix tests on Python 2 with ZODB >= 5.4.0, which now uses pickle
   protocol 3.
 
+- Fix is_broken check for old-style class instances.
+
 
 1.0 (2018-02-13)
 ----------------

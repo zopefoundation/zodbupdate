@@ -22,7 +22,7 @@ from ZODB.broken import Broken
 def is_broken(symb):
     """Return true if the given symbol is broken.
     """
-    return isinstance(symb, six.class_types) and Broken in symb.__mro__
+    return isinstance(symb, six.class_types) and issubclass(symb, Broken)
 
 
 if six.PY3:
