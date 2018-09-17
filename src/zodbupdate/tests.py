@@ -63,6 +63,9 @@ class Tests(unittest.TestCase):
         class Data(object):
             pass
 
+        class OldData:
+            pass
+
         class Factory(persistent.Persistent):
             pass
 
@@ -73,6 +76,8 @@ class Tests(unittest.TestCase):
         Factory.__module__ = 'module1'
         sys.modules['module1'].Data = Data
         Data.__module__ = 'module1'
+        sys.modules['module1'].OldData = OldData
+        OldData.__module__ = 'module1'
         sys.modules['module1'].interfaces = sys.modules['module1.interfaces']
         sys.modules['module1.interfaces'].IFactory = IFactory
         IFactory.__module__ = 'module1.interfaces'
@@ -584,6 +589,25 @@ class Python2Tests(Tests):
             self.log_messages)
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
+
+    def test_old_style_class(self):
+        factory = self.root['test'] = sys.modules['module1'].Factory()
+        factory.data = sys.modules['module1'].OldData()
+        transaction.commit()
+
+        self.update()
+
+        self.assertIn(
+            self.storage.load(self.root['test']._p_oid, '')[0],
+            (
+                # ZODB < 5.4
+                '\x80\x02cmodule1\nFactory\nq\x01.'
+                '\x80\x02}q\x02U\x04dataq\x03(cmodule1\nOldData\nq\x04oq\x05}q\x06bs.'
+                # ZODB >= 5.4
+                '\x80\x03cmodule1\nFactory\nq\x01.'
+                '\x80\x03}q\x02U\x04dataq\x03(cmodule1\nOldData\nq\x04oq\x05}q\x06bs.'
+            )
+        )
 
 
 class Python3Tests(Tests):
