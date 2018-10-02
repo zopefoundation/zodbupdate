@@ -58,7 +58,7 @@ def decode_attribute(attribute, encoding):
 
     def decode(data):
         value = data.get(attribute)
-        if not isinstance(value, six.text_type):
+        if value is not None and not isinstance(value, six.text_type):
             data[attribute] = value.decode(encoding)
             return True
         return False
@@ -70,7 +70,7 @@ def encode_binary(attribute):
 
     def encode(data):
         value = data.get(attribute)
-        if not isinstance(value, zodbpickle.binary):
+        if value is not None and not isinstance(value, zodbpickle.binary):
             data[attribute] = zodbpickle.binary(value)
             return True
         return False
