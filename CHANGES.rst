@@ -4,6 +4,9 @@ Changes
 1.1 (unreleased)
 ----------------
 
+- When migrating databases to python3, do not fail when converting
+  attributes containing None.
+
 - Fix tests on Python 2 with ZODB >= 5.4.0, which now uses pickle
   protocol 3.
 
