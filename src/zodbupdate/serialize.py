@@ -19,11 +19,15 @@ import sys
 import six
 import zodbpickle
 
+from ZODB.blob import Blob
 from ZODB.broken import find_global, Broken, rebuild
 from zodbupdate import utils
 
 logger = logging.getLogger('zodbupdate.serialize')
 known_broken_modules = {}
+
+# types to skip when renaming/migrating databases
+SKIP_TYPES = [Blob]
 
 
 def create_broken_module_for(symb):
@@ -37,7 +41,7 @@ def create_broken_module_for(symb):
     parts = symb.__module__.split('.')
     previous = None
     for fullname, name in reversed(
-            [('.'.join(parts[0:p+1]), parts[p])
+            [('.'.join(parts[0:p + 1]), parts[p])
              for p in range(1, len(parts))]):
         if fullname not in sys.modules:
             if fullname not in known_broken_modules:
@@ -298,6 +302,10 @@ class ObjectRenamer(object):
         data = unpickler.load()
 
         class_meta = self.__update_class_meta(class_meta)
+
+        if class_meta in SKIP_TYPES:
+            # do not do renames/conversions on blob records
+            return None
 
         self.__decode_data(class_meta, data)
 

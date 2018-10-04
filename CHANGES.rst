@@ -4,6 +4,9 @@ Changes
 1.1 (unreleased)
 ----------------
 
+- Skip records for ZODB.blob when migrating database to python3 to not break
+  references to blobfiles.
+
 - When migrating databases to python3, do not fail when converting
   attributes containing None.
 
