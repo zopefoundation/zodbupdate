@@ -27,6 +27,7 @@ import logging
 import six
 import zope.interface
 import zodbupdate.main
+import zodbupdate.serialize
 
 
 class TestLogHandler(object):
@@ -94,6 +95,8 @@ class Tests(unittest.TestCase):
         self.conn = self.db.open()
         self.root = self.conn.root()
 
+        self._skipped_symbs = zodbupdate.serialize.SKIP_SYMBS
+
     def update(self, **args):
         self.conn.close()
         self.db.close()
@@ -131,6 +134,8 @@ class Tests(unittest.TestCase):
         os.unlink(self.dbfile + '.index')
         os.unlink(self.dbfile + '.tmp')
         os.unlink(self.dbfile + '.lock')
+
+        zodbupdate.serialize.SKIP_SYMBS = self._skipped_symbs
 
     def test_no_transaction_if_no_changes(self):
         # If an update run doesn't produce any changes it won't commit the
@@ -175,55 +180,47 @@ class Tests(unittest.TestCase):
         renames = updater.processor.get_rules(implicit=True)
         self.assertEqual({}, renames)
 
-
-class Python2Tests(Tests):
-
-    def test_blob_pickles_are_left_untouched(self):
-        """
-        """
-        # self.root['my-blob'] = ZODB.blob.Blob()
-        # results in an error
-        # Unsupported: Storing Blobs in <ZODB.mvccadapter.MVCCAdapterInstance ...> is not supported.
-        # old_oid = self.root['my-blob']._p_oid
-
-        # use the test factory/type and add it to SKIP_TYPES since
-        # committing blobs to the storage of this test results in an error
-        SkippedType = sys.modules['module1'].Factory
-        skipped = SkippedType()
-        skipped.data = u'Ümlaut'
+    def test_skipped_types_are_left_untouched(self):
+        skipped = sys.modules['module1'].Factory()
         self.root['skipped'] = skipped
-        # XXX these faked modules are not properly skipped since the class
-        # is persistent.mapping.PersistentMapping
-
-        import zodbupdate.serialize
-        SKIP_TYPES_ORIGINAL = zodbupdate.serialize.SKIP_TYPES
-        zodbupdate.serialize.SKIP_TYPES = SKIP_TYPES_ORIGINAL + [SkippedType]
-
-        # zodb blobs need to be in SKIP_TYPES
-        self.assertIn(ZODB.blob.Blob, zodbupdate.serialize.SKIP_TYPES)
-
         transaction.commit()
+
+        self.assertIn(('ZODB.blob', 'Blob'), zodbupdate.serialize.SKIP_SYMBS)
+        zodbupdate.serialize.SKIP_SYMBS += [('module1', 'Factory')]
 
         oid = self.root['skipped']._p_oid
         old_pickle, old_serial = self.storage.load(oid)
 
-        # set (useless/unneeded) converter for Blobs to make sure they keep
-        # untouched even if converters and renames are available for it
-        from zodbupdate.convert import encode_binary
         self.update(
-            convert_py3=True,
-            default_decoders={('module1', 'Factory'): [encode_binary('data')]},
-            default_renames={('module1', 'Factory'): ('module1', 'NewFactory')}
-        )
+            default_renames={
+                ('module1', 'Factory'): ('module2', 'OtherFactory')})
 
-        # TODO find out what actually changes on blob records that breaks them
-        # and test for this here
         pickle, serial = self.storage.load(oid)
         self.assertEqual(old_pickle, pickle)
         self.assertEqual(old_serial, serial)
 
-        # cleanup SKIP_TYPES
-        zodbupdate.serialize.SKIP_TYPES = SKIP_TYPES_ORIGINAL
+    def test_not_skipped_types_are_touched(self):
+        skipped = sys.modules['module1'].Factory()
+        self.root['skipped'] = skipped
+        transaction.commit()
+
+        self.assertNotIn(
+            ('module1', 'Factory'),
+            zodbupdate.serialize.SKIP_SYMBS)
+
+        oid = self.root['skipped']._p_oid
+        old_pickle, old_serial = self.storage.load(oid)
+
+        self.update(
+            default_renames={
+                ('module1', 'Factory'): ('module2', 'OtherFactory')})
+
+        pickle, serial = self.storage.load(oid)
+        self.assertNotEqual(old_pickle, pickle)
+        self.assertNotEqual(old_serial, serial)
+
+
+class Python2Tests(Tests):
 
     def test_convert_attribute_to_bytes(self):
         from zodbupdate.convert import encode_binary
