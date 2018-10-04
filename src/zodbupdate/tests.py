@@ -609,6 +609,24 @@ class Python2Tests(Tests):
             )
         )
 
+    def test_encode_binary_leaves_none_untouched(self):
+        from zodbupdate.convert import encode_binary
+        mock = dict()
+        mock['foo'] = None
+        encoder = encode_binary('foo')
+        result = encoder(mock)
+        self.assertEquals(result, False)
+        self.assertEquals(mock['foo'], None)
+
+    def test_decode_attribute_leaves_none_untouched(self):
+        from zodbupdate.convert import decode_attribute
+        mock = dict()
+        mock['foo'] = None
+        encoder = decode_attribute('foo', 'utf-8')
+        result = encoder(mock)
+        self.assertEquals(result, False)
+        self.assertEquals(mock['foo'], None)
+
 
 class Python3Tests(Tests):
 
