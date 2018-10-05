@@ -15,6 +15,10 @@ Changes
 
 - Fix `is_broken` check for old-style class instances.
 
+- Add support for Python 3.7.
+
+- Drop PyPy support.
+
 
 1.0 (2018-02-13)
 ----------------

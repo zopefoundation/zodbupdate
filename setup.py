@@ -16,7 +16,8 @@ from setuptools import setup, find_packages
 
 
 def read(x):
-    return open(x).read()
+    with open(x) as f:
+        return f.read()
 
 
 tests_require = [
@@ -30,10 +31,27 @@ setup(name='zodbupdate',
       url='http://www.python.org/pypi/zodbupdate',
       license='ZPL 2.1',
       description='Update ZODB class references for moved or renamed classes.',
+      classifiers=[
+          "Development Status :: 6 - Mature",
+          "Framework :: Zope :: 2",
+          "Framework :: Zope :: 3",
+          "Framework :: Zope :: 4",
+          "License :: OSI Approved :: Zope Public License",
+          "Operating System :: OS Independent",
+          "Programming Language :: Python",
+          "Programming Language :: Python :: 2",
+          "Programming Language :: Python :: 2.7",
+          "Programming Language :: Python :: 3",
+          "Programming Language :: Python :: 3.4",
+          "Programming Language :: Python :: 3.5",
+          "Programming Language :: Python :: 3.6",
+          "Programming Language :: Python :: 3.7",
+          "Programming Language :: Python :: Implementation :: CPython",
+      ],
       long_description=(
-        read('README.rst')
-        + '\n' +
-        read('CHANGES.rst')),
+          read('README.rst')
+          + '\n' +
+          read('CHANGES.rst')),
       version='1.1.dev0',
       package_dir={'': 'src'},
       packages=find_packages('src'),
@@ -45,8 +63,6 @@ setup(name='zodbupdate',
           'transaction',
           'zodbpickle',
       ],
-      test_suite='zodbupdate.tests.test_suite',
-      tests_require=tests_require,
       extras_require={'test': tests_require},
       entry_points={
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
