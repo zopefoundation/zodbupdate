@@ -4,16 +4,16 @@ Changes
 1.1 (unreleased)
 ----------------
 
-- Skip records for ZODB.blob when migrating database to python3 to not break
+- Skip records for ZODB.blob when migrating database to Python 3 to not break
   references to blobfiles.
 
-- When migrating databases to python3, do not fail when converting
+- When migrating databases to Python 3, do not fail when converting
   attributes containing None.
 
 - Fix tests on Python 2 with ZODB >= 5.4.0, which now uses pickle
   protocol 3.
 
-- Fix is_broken check for old-style class instances.
+- Fix `is_broken` check for old-style class instances.
 
 
 1.0 (2018-02-13)
