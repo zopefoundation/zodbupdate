@@ -25,6 +25,9 @@ from zodbupdate import utils
 logger = logging.getLogger('zodbupdate.serialize')
 known_broken_modules = {}
 
+# types to skip when renaming/migrating databases
+SKIP_SYMBS = [('ZODB.blob', 'Blob')]
+
 
 def create_broken_module_for(symb):
     """If your pickle refer a broken class (not an instance of it, a
@@ -37,7 +40,7 @@ def create_broken_module_for(symb):
     parts = symb.__module__.split('.')
     previous = None
     for fullname, name in reversed(
-            [('.'.join(parts[0:p+1]), parts[p])
+            [('.'.join(parts[0:p + 1]), parts[p])
              for p in range(1, len(parts))]):
         if fullname not in sys.modules:
             if fullname not in known_broken_modules:
@@ -155,7 +158,10 @@ class ObjectRenamer(object):
         loaded and its location is checked to see if it have moved as
         well.
         """
-        if symb_info in self.__renames:
+        if symb_info in SKIP_SYMBS:
+            self.__skipped = True
+            return symb_info
+        elif symb_info in self.__renames:
             self.__changed = True
             return self.__renames[symb_info]
         else:
@@ -292,12 +298,17 @@ class ObjectRenamer(object):
         return None otherwise.
         """
         self.__changed = False
+        self.__skipped = False
 
         unpickler = self.__unpickler(input_file)
         class_meta = unpickler.load()
         data = unpickler.load()
 
         class_meta = self.__update_class_meta(class_meta)
+
+        if self.__skipped:
+            # do not do renames/conversions on blob records
+            return None
 
         self.__decode_data(class_meta, data)
 
