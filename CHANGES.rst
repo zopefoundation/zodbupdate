@@ -1,7 +1,7 @@
 Changes
 =======
 
-1.1 (unreleased)
+1.1 (2018-10-05)
 ----------------
 
 - Skip records for ZODB.blob when migrating database to Python 3 to not break

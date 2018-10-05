@@ -52,7 +52,7 @@ setup(name='zodbupdate',
           read('README.rst')
           + '\n' +
           read('CHANGES.rst')),
-      version='1.1.dev0',
+      version='1.1',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
@@ -64,6 +64,7 @@ setup(name='zodbupdate',
           'zodbpickle',
       ],
       extras_require={'test': tests_require},
+      zip_safe=False,
       entry_points={
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
       })
