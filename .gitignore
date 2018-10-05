@@ -4,6 +4,7 @@
 .tox
 __pycache__
 bin
+coverage.xml
 develop-eggs
 htmlcov/
 lib/
