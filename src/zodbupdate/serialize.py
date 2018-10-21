@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+import contextlib
 import io
 import logging
 import types
@@ -144,13 +145,21 @@ class ObjectRenamer(object):
     """
 
     def __init__(
-            self, renames, decoders, pickle_protocol=3, repickle_all=False):
+            self, renames, decoders, pickle_protocol=3, repickle_all=False,
+            encoding=None):
         self.__added = dict()
         self.__renames = renames
         self.__decoders = decoders
         self.__changed = False
         self.__protocol = pickle_protocol
         self.__repickle_all = repickle_all
+        self.__encoding = encoding
+        self.__unpickle_options = {}
+        if encoding:
+            self.__unpickle_options = {
+                'encoding': encoding,
+                'errors': 'bytes',
+            }
 
     def __update_symb(self, symb_info):
         """This method look in a klass or symbol have been renamed or
@@ -202,34 +211,34 @@ class ObjectRenamer(object):
             if isinstance(cls_info, tuple):
                 cls_info = self.__update_symb(cls_info)
             return ZODBReference(
-                (zodbpickle.binary(oid), cls_info))
+                (utils.safe_binary(oid), cls_info))
         if isinstance(reference, list):
             if len(reference) == 1:
                 oid, = reference
                 return ZODBReference(
-                    ['w', (zodbpickle.binary(oid))])
+                    ['w', (utils.safe_binary(oid))])
             mode, information = reference
             if mode == 'm':
                 database_name, oid, cls_info = information
                 if isinstance(cls_info, tuple):
                     cls_info = self.__update_symb(cls_info)
                 return ZODBReference(
-                    ['m', (database_name, zodbpickle.binary(oid), cls_info)])
+                    ['m', (database_name, utils.safe_binary(oid), cls_info)])
             if mode == 'n':
                 database_name, oid = information
                 return ZODBReference(
-                    ['m', (database_name, zodbpickle.binary(oid))])
+                    ['m', (database_name, utils.safe_binary(oid))])
             if mode == 'w':
                 if len(information) == 1:
                     oid, = information
                     return ZODBReference(
-                        ['w', (zodbpickle.binary(oid))])
+                        ['w', (utils.safe_binary(oid))])
                 oid, database_name = information
                 return ZODBReference(
-                    ['w', (zodbpickle.binary(oid), database_name)])
+                    ['w', (utils.safe_binary(oid), database_name)])
         if isinstance(reference, (str, zodbpickle.binary)):
             oid = reference
-            return ZODBReference(zodbpickle.binary(oid))
+            return ZODBReference(utils.safe_binary(oid))
         raise AssertionError('Unknown reference format.')
 
     def __persistent_id(self, obj):
@@ -247,7 +256,8 @@ class ObjectRenamer(object):
         return utils.Unpickler(
             input_file,
             self.__persistent_load,
-            self.__find_global)
+            self.__find_global,
+            **self.__unpickle_options)
 
     def __pickler(self, output_file):
         """Create a pickler able to save to the given file, objects we
@@ -291,6 +301,18 @@ class ObjectRenamer(object):
         for decoder in self.__decoders.get(key, []):
             self.__changed = decoder(data) or self.__changed
 
+    @contextlib.contextmanager
+    def __patched_encoding(self):
+        if self.__encoding:
+            orig = utils.ENCODING
+            utils.ENCODING = self.__encoding
+            try:
+                yield
+            finally:
+                utils.ENCODING = orig
+        else:
+            yield
+
     def rename(self, input_file):
         """Take a ZODB record (as a file object) as input. We load it,
         replace any reference to renamed class we know of. If any
@@ -300,32 +322,33 @@ class ObjectRenamer(object):
         self.__changed = False
         self.__skipped = False
 
-        unpickler = self.__unpickler(input_file)
-        class_meta = unpickler.load()
-        if self.__skipped:
-            # do not do renames/conversions on blob records
-            return None
-        class_meta = self.__update_class_meta(class_meta)
+        with self.__patched_encoding():
+            unpickler = self.__unpickler(input_file)
+            class_meta = unpickler.load()
+            if self.__skipped:
+                # do not do renames/conversions on blob records
+                return None
+            class_meta = self.__update_class_meta(class_meta)
 
-        data = unpickler.load()
-        self.__decode_data(class_meta, data)
+            data = unpickler.load()
+            self.__decode_data(class_meta, data)
 
-        if not (self.__changed or self.__repickle_all):
-            return None
+            if not (self.__changed or self.__repickle_all):
+                return None
 
-        output_file = io.BytesIO()
-        pickler = self.__pickler(output_file)
-        try:
-            pickler.dump(class_meta)
-            pickler.dump(data)
-        except utils.PicklingError as error:
-            logger.error(
-                'Error: cannot pickle modified record: {}'.format(error))
-            # Could not pickle that record, skip it.
-            return None
+            output_file = io.BytesIO()
+            pickler = self.__pickler(output_file)
+            try:
+                pickler.dump(class_meta)
+                pickler.dump(data)
+            except utils.PicklingError as error:
+                logger.error(
+                    'Error: cannot pickle modified record: {}'.format(error))
+                # Could not pickle that record, skip it.
+                return None
 
-        output_file.truncate()
-        return output_file
+            output_file.truncate()
+            return output_file
 
     def get_rules(self, implicit=False, explicit=False):
         rules = {}

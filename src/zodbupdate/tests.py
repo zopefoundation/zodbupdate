@@ -227,6 +227,11 @@ class Tests(unittest.TestCase):
 
 class Python2Tests(Tests):
 
+    def test_convert_with_default_encoding(self):
+        # Python 2's pickle doesn't support an encoding parameter
+        with self.assertRaises(AssertionError):
+            self.update(encoding='utf-8')
+
     def test_convert_attribute_to_bytes(self):
         from zodbupdate.convert import encode_binary
 
@@ -707,14 +712,145 @@ class Python2Tests(Tests):
 
 class Python3Tests(Tests):
 
-    def test_convert_to_py3(self):
+    def test_convert_attribute_to_bytes(self):
+        from zodbupdate.convert import encode_binary
+
         test = sys.modules['module1'].Factory()
+        test.binary = 'this looks like binary'
         self.root['test'] = test
         transaction.commit()
 
-        # You are already using python 3
-        with self.assertRaises(AssertionError):
-            self.update(convert_py3=True)
+        self.update(convert_py3=True, default_decoders={
+            ('module1', 'Factory'): [encode_binary('binary')]})
+
+        # Protocol is 3 (x80x03) now and the string is encoded as
+        # bytes (C).
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x06\x00\x00\x00binaryq\x02'
+            b'C\x16this looks like binaryq\x03s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_attribute_to_unicode(self):
+        from zodbupdate.convert import decode_attribute
+
+        test = sys.modules['module1'].Factory()
+        test.text = u'text élégant'.encode('utf-8')
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True, default_decoders={
+            ('module1', 'Factory'): [decode_attribute('text', 'utf-8')]})
+
+        # Protocol is 3 (x80x03) now and the string is encoded as unicode (X)
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x04\x00\x00\x00textq\x02'
+            b'X\x0e\x00\x00\x00text \xc3\xa9l\xc3\xa9gantq\x03s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_object_references(self):
+        test = sys.modules['module1'].Factory()
+        test.reference = sys.modules['module1'].Factory()
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and oid in the object reference
+        # is encoded as bytes (C).
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\t\x00\x00\x00referenceq\x02'
+            b'C\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x03h\x00\x86q\x04Qs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_datetime_to_py3(self):
+        import datetime
+
+        test = sys.modules['module1'].Factory()
+        test.date_of_birth = datetime.datetime(2018, 12, 12)
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and datetime payload is encoded
+        # as bytes (C).
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\r\x00\x00\x00date_of_birthq\x02'
+            b'cdatetime\ndatetime\nq\x03'
+            b'C\n\x07\xe2\x0c\x0c\x00\x00\x00\x00\x00\x00q\x04'
+            b'\x85q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_date_to_py3(self):
+        import datetime
+
+        test = sys.modules['module1'].Factory()
+        test.date_of_birth = datetime.date(2018, 12, 12)
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and datetime payload is encoded
+        # as bytes (C).
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\r\x00\x00\x00date_of_birthq\x02'
+            b'cdatetime\ndate\nq\x03'
+            b'C\x04\x07\xe2\x0c\x0cq\x04\x85q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_time_to_py3(self):
+        import datetime
+
+        test = sys.modules['module1'].Factory()
+        test.date_of_birth = datetime.time(12, 12)
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and datetime payload is encoded
+        # as bytes (C).
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\r\x00\x00\x00date_of_birthq\x02'
+            b'cdatetime\ntime\nq\x03'
+            b'C\x06\x0c\x0c\x00\x00\x00\x00q\x04\x85q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_with_default_encoding(self):
+        # Manually craft a protocol 2 pickle
+        test = sys.modules['module1'].Factory()
+        self.root['test'] = test
+        data = (
+            b'\x80\x02cmodule1\nFactory\nq\x01.'
+            b'\x80\x02}q\x02U\x06stringq\x03U\x03\xe2\x98\x83q\x04s.'
+        )
+        orig_serialize = ZODB.serialize.ObjectWriter.serialize
+        def serialize(self, obj):
+            if obj is test:
+                return data
+            return orig_serialize(self, obj)
+        ZODB.serialize.ObjectWriter.serialize = serialize
+        try:
+            transaction.commit()
+        finally:
+            ZODB.serialize.ObjectWriter.serialize = orig_serialize
+
+        self.update(convert_py3=True, encoding='utf-8')
+
+        # Now we have a protocol 3 pickle with the text decoded
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x06\x00\x00\x00stringq\x02'
+            b'X\x03\x00\x00\x00\xe2\x98\x83q\x03s.',
+            self.storage.load(test._p_oid, '')[0]
+        )
 
     def test_factory_ignore_missing_persistent(self):
         # Create a ZODB with an object referencing a factory, then

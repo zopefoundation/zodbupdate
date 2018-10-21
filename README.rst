@@ -100,8 +100,8 @@ users to use that option. If they never pack their storage, it is a good
 occasion).
 
 
-Migration to Python 3
----------------------
+Converting to Python 3
+----------------------
 
 ``zodbupdate`` can be used to migrate a database created with a Python
 2 application to be usable with the same application in Python 3. To
@@ -152,7 +152,7 @@ decoders from the entry points::
           """)
 
 Decoders are dictionaries that specifies as keys attributes on
-Persistent classes that must either be encode as bytes (if the value
+Persistent classes that must either be encoded as bytes (if the value
 is ``binary``) or decoded to unicode using value as encoding (for
 instance ``utf-8`` here)::
 
@@ -162,6 +162,24 @@ instance ``utf-8`` here)::
 
 Please note that for the moment only attributes on Persistent classes
 are supported.
+
+Converting to Python 3 from within Python 3
+-------------------------------------------
+
+``zodbupdate`` can also be run from within Python 3 to convert a database
+created with Python 2 to be usable in Python 3. However this works
+slightly differently than when running the conversion using Python 2.
+In Python 3 you must specify a default encoding to use while unpickling strings:
+``zodbupdate --pack --convert-py3 --encoding utf-8``.
+
+For each string in the database, zodbupdate will convert it as follows:
+
+1. If it's an attribute configured explicitly via a decoder as described
+   above, it will be decoded or encoded as specified there.
+2. Otherwise the value will be decoded using the encoding specified
+   on the command line.
+3. If there is an error while decoding using the encoding specified
+   on the command line, the value will be stored as bytes.
 
 Problems and solutions
 ----------------------
