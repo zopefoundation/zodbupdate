@@ -41,7 +41,7 @@ def create_broken_module_for(symb):
     previous = None
     for fullname, name in reversed(
             [('.'.join(parts[0:p + 1]), parts[p])
-             for p in range(1, len(parts))]):
+             for p in range(0, len(parts))]):
         if fullname not in sys.modules:
             if fullname not in known_broken_modules:
                 module = types.ModuleType(fullname)
