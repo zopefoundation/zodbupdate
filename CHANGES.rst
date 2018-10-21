@@ -4,7 +4,8 @@ Changes
 1.2 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Fix updating records that reference a broken interface
+  when the interface's top-level module is missing.
 
 
 1.1 (2018-10-05)
