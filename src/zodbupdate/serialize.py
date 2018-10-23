@@ -34,7 +34,7 @@ def create_broken_module_for(symb):
        reference to the class symbol itself) you have no choice than
        having this module available in the same symbol and with the
        same name, otherwise repickling doesn't work (as both pickle
-       and cPikle __import__ the module, and verify the class symbol
+       and cPickle __import__ the module, and verify the class symbol
        is the same than the one provided).
     """
     parts = symb.__module__.split('.')
@@ -160,8 +160,8 @@ class ObjectRenamer(object):
         """
         if symb_info in SKIP_SYMBS:
             self.__skipped = True
-            return symb_info
-        elif symb_info in self.__renames:
+
+        if symb_info in self.__renames:
             self.__changed = True
             return self.__renames[symb_info]
         else:
@@ -302,14 +302,12 @@ class ObjectRenamer(object):
 
         unpickler = self.__unpickler(input_file)
         class_meta = unpickler.load()
-        data = unpickler.load()
-
-        class_meta = self.__update_class_meta(class_meta)
-
         if self.__skipped:
             # do not do renames/conversions on blob records
             return None
+        class_meta = self.__update_class_meta(class_meta)
 
+        data = unpickler.load()
         self.__decode_data(class_meta, data)
 
         if not (self.__changed or self.__repickle_all):
@@ -322,7 +320,7 @@ class ObjectRenamer(object):
             pickler.dump(data)
         except utils.PicklingError as error:
             logger.error(
-                'Error: cannot pickling modified record: {}'.format(error))
+                'Error: cannot pickle modified record: {}'.format(error))
             # Could not pickle that record, skip it.
             return None
 

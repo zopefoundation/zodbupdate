@@ -7,6 +7,9 @@ Changes
 - Fix updating records that reference a broken interface
   when the interface's top-level module is missing.
 
+- Fixed skipping of blob records so that oids in references to blobs
+  are still converted.
+
 
 1.1 (2018-10-05)
 ----------------

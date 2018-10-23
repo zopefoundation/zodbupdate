@@ -12,6 +12,7 @@
 #
 ##############################################################################
 
+from ZODB.blob import BlobStorage
 from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration
 from ZODB.FileStorage import FileStorage
 from struct import pack, unpack
@@ -105,15 +106,20 @@ class Updater(object):
     @property
     def records(self):
         next = ZODB.utils.repr_to_oid(self.start_at)
-        if isinstance(self.storage, FileStorage):
+        storage = self.storage
+        # If we've got a BlobStorage wrapper, let's
+        # actually iterate through the storage it wraps.
+        if isinstance(storage, BlobStorage):
+            storage = storage._BlobStorage__storage
+        if isinstance(storage, FileStorage):
             # Custom iterator for FileStorage. This is used to be able
             # to recover form a POSKey error.
-            index = self.storage._index
+            index = storage._index
 
             while True:
                 oid = index.minKey(next)
                 try:
-                    data, tid = self.storage.load(oid, "")
+                    data, tid = storage.load(oid, "")
                 except ZODB.POSException.POSKeyError as e:
                     logger.error(
                         'Warning: Jumping record {}, '
@@ -129,18 +135,18 @@ class Updater(object):
                 except ValueError:
                     # No more records
                     break
-        elif IStorageCurrentRecordIteration.providedBy(self.storage):
+        elif IStorageCurrentRecordIteration.providedBy(storage):
             # Second best way to iterate through the lastest records.
             while True:
-                oid, tid, data, next = self.storage.record_iternext(next)
+                oid, tid, data, next = storage.record_iternext(next)
                 yield oid, tid, io.BytesIO(data)
                 if next is None:
                     break
-        elif (IStorageIteration.providedBy(self.storage) and
-              not self.storage.supportsUndo()):
+        elif (IStorageIteration.providedBy(storage) and
+              not storage.supportsUndo()):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
-            for transaction in self.storage.iterator():
+            for transaction in storage.iterator():
                 for rec in transaction:
                     yield rec.oid, rec.tid, io.BytesIO(rec.data)
         else:
