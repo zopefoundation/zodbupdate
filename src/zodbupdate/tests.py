@@ -685,8 +685,6 @@ class Python2Tests(Tests):
         self.assertEquals(mock['foo'], None)
 
     def test_blobs_are_left_untouched(self):
-        from zodbupdate.convert import encode_binary
-
         blob = ZODB.blob.Blob()
         self.root['blob'] = blob
         transaction.commit()
