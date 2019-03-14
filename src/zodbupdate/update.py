@@ -127,7 +127,7 @@ class Updater(object):
                     logger.error(
                         'Warning: Jumping record {}, '
                         'referencing missing key in database: {}'.format(
-                            (ZODB.utils.oid_repr(oid), str(e))))
+                            ZODB.utils.oid_repr(oid), str(e)))
                 else:
                     yield oid, tid, io.BytesIO(data)
 
