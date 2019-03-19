@@ -149,8 +149,8 @@ class Updater(object):
               not storage.supportsUndo()):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
-            for transaction in storage.iterator():
-                for rec in transaction:
+            for transaction_ in storage.iterator():
+                for rec in transaction_:
                     yield rec.oid, rec.tid, io.BytesIO(rec.data)
         else:
             raise SystemExit(
