@@ -38,14 +38,17 @@ class Updater(object):
     def __init__(
             self, storage, dry=False, renames=None, decoders=None,
             start_at='0x00', debug=False, repickle_all=False,
-            pickle_protocol=zodbupdate.utils.DEFAULT_PROTOCOL):
+            pickle_protocol=zodbupdate.utils.DEFAULT_PROTOCOL,
+            encoding='ASCII'):
         self.dry = dry
         self.storage = storage
         self.processor = zodbupdate.serialize.ObjectRenamer(
             renames=renames,
             decoders=decoders,
             pickle_protocol=pickle_protocol,
-            repickle_all=repickle_all)
+            repickle_all=repickle_all,
+            encoding=encoding,
+        )
         self.start_at = start_at
         self.debug = debug
 
@@ -95,7 +98,7 @@ class Updater(object):
             self.__commit_transaction(t, record_count != 0, commit_count)
         except Exception as error:
             if not self.debug:
-                raise error
+                raise
             import sys
             import pdb
             (type, value, traceback) = sys.exc_info()
@@ -124,7 +127,7 @@ class Updater(object):
                     logger.error(
                         'Warning: Jumping record {}, '
                         'referencing missing key in database: {}'.format(
-                            (ZODB.utils.oid_repr(oid), str(e))))
+                            ZODB.utils.oid_repr(oid), str(e)))
                 else:
                     yield oid, tid, io.BytesIO(data)
 
@@ -146,8 +149,8 @@ class Updater(object):
               not storage.supportsUndo()):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
-            for transaction in storage.iterator():
-                for rec in transaction:
+            for transaction_ in storage.iterator():
+                for rec in transaction_:
                     yield rec.oid, rec.tid, io.BytesIO(rec.data)
         else:
             raise SystemExit(

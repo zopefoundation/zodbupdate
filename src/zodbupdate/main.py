@@ -19,11 +19,11 @@ import logging
 import optparse
 import pkg_resources
 import pprint
+import six
 import time
 import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils
-import six
 
 logger = logging.getLogger('zodbupdate')
 
@@ -62,6 +62,10 @@ parser.add_option(
 parser.add_option(
     "--convert-py3", action="store_true",  dest="convert_py3",
     help="convert pickle format to protocol 3 and adjust bytes")
+parser.add_option(
+    '--encoding', dest="encoding",
+    help="used for decoding pickled strings in py3"
+)
 
 
 class DuplicateFilter(object):
@@ -115,10 +119,16 @@ def create_updater(
         default_decoders=None,
         start_at=None,
         convert_py3=False,
+        encoding=None,
         dry_run=False,
         debug=False):
     if not start_at:
         start_at = '0x00'
+
+    if six.PY2 and encoding:
+        raise AssertionError(
+            'Unpickling with a default encoding is only supported in Python 3.'
+        )
 
     decoders = {}
     if default_decoders:
@@ -129,10 +139,6 @@ def create_updater(
     repickle_all = False
     pickle_protocol = zodbupdate.utils.DEFAULT_PROTOCOL
     if convert_py3:
-        if six.PY3:
-            raise AssertionError(
-                'You can only convert a database to Python 3 format '
-                'from Python 2.')
         pickle_protocol = 3
         repickle_all = True
         decoders.update(zodbupdate.convert.load_decoders())
@@ -146,7 +152,9 @@ def create_updater(
         start_at=start_at,
         debug=debug,
         repickle_all=repickle_all,
-        pickle_protocol=pickle_protocol)
+        pickle_protocol=pickle_protocol,
+        encoding=encoding,
+    )
 
 
 def format_renames(renames):
@@ -167,6 +175,12 @@ def main():
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
+    # Magic bytes need to be converted at the end when running in Python 2
+    # but at the beginning when running in Python 3 so that FileStorage
+    # doesn't complain.
+    if options.convert_py3 and six.PY3 and not options.dry_run:
+        zodbupdate.convert.update_magic_data_fs(options.file)
+
     if options.file:
         storage = ZODB.FileStorage.FileStorage(options.file)
     elif options.config:
@@ -180,6 +194,7 @@ def main():
         storage,
         start_at=options.oid,
         convert_py3=options.convert_py3,
+        encoding=options.encoding,
         dry_run=options.dry_run,
         debug=options.debug)
     try:
@@ -204,5 +219,5 @@ def main():
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
 
-    if options.convert_py3 and not options.dry_run:
+    if options.convert_py3 and six.PY2 and not options.dry_run:
         zodbupdate.convert.update_magic_data_fs(options.file)
