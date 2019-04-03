@@ -4,6 +4,10 @@ Changes
 1.2 (unreleased)
 ----------------
 
+- Add ability to run the Python 3 migration with a default encoding for
+  ``str`` objects.
+  (`#14 <https://github.com/zopefoundation/zodbupdate/pull/14>`_)
+
 - Fix updating records that reference a broken interface
   when the interface's top-level module is missing.
 
