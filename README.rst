@@ -81,6 +81,13 @@ Rename rules can be defined using an entry point called ``zodbupdate``::
           renames = mypackage.mymodule:rename_dict
           """)
 
+These can also be defined in python::
+
+    setup(...
+          entry_points={
+            'zodbupdate': ['renames = mypackage.mymodule:rename_dict'],
+          })
+
 Those entry points must points to dictionaries that map old class
 names to new class names::
 
