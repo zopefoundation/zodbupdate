@@ -32,6 +32,51 @@ import zodbupdate.main
 import zodbupdate.serialize
 
 
+class TestsBasics(unittest.TestCase):
+    """Basic tests without the need of mocked or integrated code
+    """
+
+    def test_decode_attribute(self):
+        from zodbupdate.convert import decode_attribute
+        test_string = u'Hellö World'
+
+        # 1.1) with utf8 encoding and no fallbacks, input is utf8
+        decoder = decode_attribute(
+            attribute='testattr',
+            encoding='utf8',
+            encoding_fallbacks=[]
+        )
+        test_data = {
+            'testattr': test_string.encode('utf8')
+        }
+        self.assertTrue(decoder(data=test_data))
+        self.assertEqual(test_data['testattr'], test_string)
+        # 1.2) with utf8 encoding and no fallbacks, input is latin1: fails
+        test_data = {
+            'testattr': test_string.encode('latin1')
+        }
+        with self.assertRaises(UnicodeDecodeError):
+            decoder(data=test_data)
+
+        # 2.1) with utf8 encoding and 2 fallbacks, first fails too, input is utf8
+        decoder = decode_attribute(
+            attribute='testattr',
+            encoding='utf8',
+            encoding_fallbacks=['utf_7', 'latin1']
+        )
+        test_data = {
+            'testattr': test_string.encode('utf8')
+        }
+        self.assertTrue(decoder(data=test_data))
+        self.assertEqual(test_data['testattr'], test_string)
+        # 2.2) as 2.1, but input is latin1
+        test_data = {
+            'testattr': test_string.encode('latin1')
+        }
+        self.assertTrue(decoder(data=test_data))
+        self.assertEqual(test_data['testattr'], test_string)
+
+
 class TestLogHandler(object):
     level = logging.DEBUG
 
@@ -267,6 +312,17 @@ class Python2Tests(Tests):
             '\x80\x03}q\x02U\x04textq\x03'
             'X\x0e\x00\x00\x00text \xc3\xa9l\xc3\xa9gantq\x04s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_attribute_to_unicode(self):
+        from zodbupdate.convert import decode_attribute
+
+        test = sys.modules['module1'].Factory()
+        test.text = u'text élégant'.encode('utf-8')
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True, default_decoders={
+            ('module1', 'Factory'): [decode_attribute('text', 'utf-8')]})
 
     def test_convert_object_references(self):
         test = sys.modules['module1'].Factory()
@@ -1084,6 +1140,7 @@ class Python3Tests(Tests):
 
 def test_suite():
     suite = unittest.TestSuite()
+    suite.addTest(unittest.makeSuite(TestsBasics))
     if six.PY2:
         suite.addTest(unittest.makeSuite(Python2Tests))
     if six.PY3:

@@ -4,6 +4,8 @@ Changes
 1.2 (unreleased)
 ----------------
 
+- Enable fallback encodings for old/grown ZODBs.
+
 - Switch to use `argparse` b/c `optparse` is deprecated.
 
 - Add ability to run the Python 3 migration with a default encoding for

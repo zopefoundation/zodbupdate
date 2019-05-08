@@ -31,10 +31,11 @@ logger = logging.getLogger('zodbupdate')
 parser = argparse.ArgumentParser(
     description=("Updates all references to classes to "
                  "their canonical location."))
-parser.add_argument(
+exclusive_group = parser.add_mutually_exclusive_group()
+exclusive_group.add_argument(
     "-f", "--file",
     help="load FileStorage")
-parser.add_argument(
+exclusive_group.add_argument(
     "-c", "--config",
     help="load storage from config file")
 parser.add_argument(
@@ -65,6 +66,12 @@ parser.add_argument(
 parser.add_argument(
     '--encoding', dest="encoding",
     help="used for decoding pickled strings in py3"
+)
+parser.add_argument(
+    '--encoding-fallback', dest="encoding_fallbacks", nargs="*",
+    help="Older databases may have other encoding stored than 'utf-8', like latin1."
+         "If an encoding error occurs, fallback to the given encodings "
+         "and issue a warning.",
 )
 
 
@@ -120,6 +127,7 @@ def create_updater(
         start_at=None,
         convert_py3=False,
         encoding=None,
+        encoding_fallbacks=None,
         dry_run=False,
         debug=False):
     if not start_at:
@@ -141,7 +149,11 @@ def create_updater(
     if convert_py3:
         pickle_protocol = 3
         repickle_all = True
-        decoders.update(zodbupdate.convert.load_decoders())
+        decoders.update(
+            zodbupdate.convert.load_decoders(
+                encoding_fallbacks=encoding_fallbacks
+            )
+        )
         renames.update(zodbupdate.convert.default_renames())
 
     return zodbupdate.update.Updater(
@@ -195,6 +207,7 @@ def main():
         start_at=args.oid,
         convert_py3=args.convert_py3,
         encoding=args.encoding,
+        encoding_fallbacks=args.encoding_fallbacks,
         dry_run=args.dry_run,
         debug=args.debug)
     try:
