@@ -4,6 +4,8 @@ Changes
 1.2 (unreleased)
 ----------------
 
+- Switch to use `argparse` b/c `optparse` is deprecated.
+
 - Add ability to run the Python 3 migration with a default encoding for
   ``str`` objects.
   (`#14 <https://github.com/zopefoundation/zodbupdate/pull/14>`_)
