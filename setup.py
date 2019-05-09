@@ -67,4 +67,6 @@ setup(name='zodbupdate',
       zip_safe=False,
       entry_points={
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
-      })
+      },
+      test_suite="zodbupdate.tests.test_suite",
+)

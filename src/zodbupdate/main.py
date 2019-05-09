@@ -16,7 +16,7 @@ import ZODB.FileStorage
 import ZODB.config
 import ZODB.serialize
 import logging
-import optparse
+import argparse
 import pkg_resources
 import pprint
 import six
@@ -28,43 +28,50 @@ import zodbupdate.utils
 logger = logging.getLogger('zodbupdate')
 
 
-parser = optparse.OptionParser(
+parser = argparse.ArgumentParser(
     description=("Updates all references to classes to "
                  "their canonical location."))
-parser.add_option(
+exclusive_group = parser.add_mutually_exclusive_group()
+exclusive_group.add_argument(
     "-f", "--file",
     help="load FileStorage")
-parser.add_option(
+exclusive_group.add_argument(
     "-c", "--config",
     help="load storage from config file")
-parser.add_option(
+parser.add_argument(
     "-n", "--dry-run", action="store_true",
     help="perform a trial run with no changes made")
-parser.add_option(
+parser.add_argument(
     "-s", "--save-renames",
     help="save automatically determined rename rules to file")
-parser.add_option(
+parser.add_argument(
     "-q", "--quiet", action="store_true",
     help="suppress non-error messages")
-parser.add_option(
+parser.add_argument(
     "-v", "--verbose", action="store_true",
     help="more verbose output")
-parser.add_option(
+parser.add_argument(
     "-o", "--oid",
     help="start with provided oid in hex format, ex: 0xaa1203")
-parser.add_option(
+parser.add_argument(
     "-d", "--debug", action="store_true",
     help="post mortem pdb on failure")
-parser.add_option(
+parser.add_argument(
     "--pack", action="store_true", dest="pack",
     help=("pack the storage when done. use in conjunction of -c "
           "if you have blobs storage"))
-parser.add_option(
-    "--convert-py3", action="store_true",  dest="convert_py3",
+parser.add_argument(
+    "--convert-py3", action="store_true", dest="convert_py3",
     help="convert pickle format to protocol 3 and adjust bytes")
-parser.add_option(
+parser.add_argument(
     '--encoding', dest="encoding",
     help="used for decoding pickled strings in py3"
+)
+parser.add_argument(
+    '--encoding-fallback', dest="encoding_fallbacks", nargs="*",
+    help="Older databases may have other encoding stored than 'utf-8', like latin1."
+         "If an encoding error occurs, fallback to the given encodings "
+         "and issue a warning.",
 )
 
 
@@ -120,6 +127,7 @@ def create_updater(
         start_at=None,
         convert_py3=False,
         encoding=None,
+        encoding_fallbacks=None,
         dry_run=False,
         debug=False):
     if not start_at:
@@ -141,7 +149,11 @@ def create_updater(
     if convert_py3:
         pickle_protocol = 3
         repickle_all = True
-        decoders.update(zodbupdate.convert.load_decoders())
+        decoders.update(
+            zodbupdate.convert.load_decoders(
+                encoding_fallbacks=encoding_fallbacks
+            )
+        )
         renames.update(zodbupdate.convert.default_renames())
 
     return zodbupdate.update.Updater(
@@ -167,24 +179,24 @@ def format_renames(renames):
 
 
 def main():
-    options, args = parser.parse_args()
+    args = parser.parse_args()
 
-    setup_logger(quiet=options.quiet, verbose=options.verbose)
+    setup_logger(quiet=args.quiet, verbose=args.verbose)
 
-    if options.file and options.config:
+    if args.file and args.config:
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
     # Magic bytes need to be converted at the end when running in Python 2
     # but at the beginning when running in Python 3 so that FileStorage
     # doesn't complain.
-    if options.convert_py3 and six.PY3 and not options.dry_run:
-        zodbupdate.convert.update_magic_data_fs(options.file)
+    if args.convert_py3 and six.PY3 and not args.dry_run:
+        zodbupdate.convert.update_magic_data_fs(args.file)
 
-    if options.file:
-        storage = ZODB.FileStorage.FileStorage(options.file)
-    elif options.config:
-        with open(options.config) as config:
+    if args.file:
+        storage = ZODB.FileStorage.FileStorage(args.file)
+    elif args.config:
+        with open(args.config) as config:
             storage = ZODB.config.storageFromFile(config)
     else:
         raise AssertionError(
@@ -192,11 +204,12 @@ def main():
 
     updater = create_updater(
         storage,
-        start_at=options.oid,
-        convert_py3=options.convert_py3,
-        encoding=options.encoding,
-        dry_run=options.dry_run,
-        debug=options.debug)
+        start_at=args.oid,
+        convert_py3=args.convert_py3,
+        encoding=args.encoding,
+        encoding_fallbacks=args.encoding_fallbacks,
+        dry_run=args.dry_run,
+        debug=args.debug)
     try:
         updater()
     except Exception as error:
@@ -208,16 +221,16 @@ def main():
         updater.processor.get_rules(implicit=True))
     if implicit_renames:
         logger.info('Found new rules: {}'.format(implicit_renames))
-    if options.save_renames:
-        logger.info('Saving rules into {}'.format(options.save_renames))
-        with open(options.save_renames, 'w') as output:
+    if args.save_renames:
+        logger.info('Saving rules into {}'.format(args.save_renames))
+        with open(args.save_renames, 'w') as output:
             output.write('renames = {}'.format(
                 format_renames(updater.processor.get_rules(
                     implicit=True, explicit=True))))
-    if options.pack:
+    if args.pack:
         logger.info('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
 
-    if options.convert_py3 and six.PY2 and not options.dry_run:
-        zodbupdate.convert.update_magic_data_fs(options.file)
+    if args.convert_py3 and six.PY2 and not args.dry_run:
+        zodbupdate.convert.update_magic_data_fs(args.file)
