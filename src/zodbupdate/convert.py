@@ -57,7 +57,7 @@ def default_renames():
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}
 
 
-def decode_attribute(attribute, encoding, encoding_fallbacks=[]):
+def decode_attribute(attribute, encoding, encoding_fallbacks=None):
 
     def decode(data):
         value = data.get(attribute)
@@ -70,6 +70,9 @@ def decode_attribute(attribute, encoding, encoding_fallbacks=[]):
         try:
             data[attribute] = value.decode(encoding)
         except UnicodeDecodeError:
+            if not encoding_fallbacks:
+                logger.error("No encoding-fallbacks given!")
+                raise
             for encoding_fallback in encoding_fallbacks:
                 try:
                     data[attribute] = value.decode(encoding_fallback)
@@ -78,7 +81,7 @@ def decode_attribute(attribute, encoding, encoding_fallbacks=[]):
                 logger.warning(
                     'Encoding fallback to "{fallback_encoding:s}" '
                     'while decoding attribute "{attribute:s}" '
-                    'from: \n{value}\nto:\n{data_attribute}'.format(
+                    'from: \n{value!r}\nto:\n{data_attribute}'.format(
                         fallback_encoding=encoding_fallback,
                         attribute=attribute,
                         value=value,
