@@ -5,7 +5,7 @@ Changes
 ----------------
 
 - Enable fallback encodings for Python 3 conversion for old/grown ZODBs using
-   the new command line option ``--encoding-fallback``.
+  the new command line option ``--encoding-fallback``.
   (`#15 <https://github.com/zopefoundation/zodbupdate/pull/15>`_)
 
 - Switch to use `argparse` as `optparse` is deprecated.
