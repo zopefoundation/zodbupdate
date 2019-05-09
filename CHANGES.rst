@@ -20,6 +20,10 @@ Changes
 - Fixed skipping of blob records so that oids in references to blobs
   are still converted.
 
+- Add support for Python 3.8a3.
+
+- Drop support for Python 3.4.
+
 
 1.1 (2018-10-05)
 ----------------
