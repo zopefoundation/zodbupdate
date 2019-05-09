@@ -1,7 +1,7 @@
 Changes
 =======
 
-1.2 (unreleased)
+1.2 (2019-05-09)
 ----------------
 
 - Enable fallback encodings for Python 3 conversion for old/grown ZODBs using
