@@ -1,16 +1,15 @@
 language: python
+dist: xenial
 python:
     - 2.7
-    - 3.4
     - 3.5
     - 3.6
+    - 3.7
+    - 3.8-dev
 matrix:
   include:
     - python: 2.7
       env: OLDZODB=true
-    - python: 3.7
-      dist: xenial
-      sudo: true
 install:
     - pip install -U pip setuptools
     - pip install -U zope.testrunner coverage coveralls
