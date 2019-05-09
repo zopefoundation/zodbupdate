@@ -57,6 +57,48 @@ def default_renames():
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}
 
 
+def convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks):
+    converted = None
+    try:
+        converted = value.decode(encoding)
+    except UnicodeDecodeError:
+        if not encoding_fallbacks:
+            logger.error("No encoding-fallbacks given!")
+            raise
+        for encoding_fallback in encoding_fallbacks:
+            try:
+                converted = value.decode(encoding_fallback)
+            except UnicodeDecodeError:
+                continue
+            
+            logger.warning(
+                'Encoding fallback to "{fallback_encoding:s}" '
+                'while decoding attribute "{attribute:s}" '.format(
+                    fallback_encoding=encoding_fallback,
+                    attribute=attribute,
+                )
+            )
+            logger.debug(
+                "Decoded from: \n{value!r}\nto:\n{converted}".format(
+                    value=value,
+                    converted=converted,
+                )
+            )
+            break
+        else:
+            raise UnicodeDecodeError(
+                'encoding={encoding}, fallback_encodings={fallbacks}'.format(
+                    encoding=encoding,
+                    fallbacks=encoding_fallbacks,
+                ),
+                value,
+                0,
+                0,
+                'Neither with encoding nor with fallbacks.',
+            )
+    
+    return converted
+
 def decode_attribute(attribute, encoding, encoding_fallbacks=None):
 
     def decode(data):
@@ -67,42 +109,7 @@ def decode_attribute(attribute, encoding, encoding_fallbacks=None):
             if encoding == utils.ENCODING:
                 return False
             value = utils.safe_binary(value)
-        try:
-            data[attribute] = value.decode(encoding)
-        except UnicodeDecodeError:
-            if not encoding_fallbacks:
-                logger.error("No encoding-fallbacks given!")
-                raise
-            for encoding_fallback in encoding_fallbacks:
-                try:
-                    data[attribute] = value.decode(encoding_fallback)
-                except UnicodeDecodeError:
-                    continue
-                logger.warning(
-                    'Encoding fallback to "{fallback_encoding:s}" '
-                    'while decoding attribute "{attribute:s}" '
-                    'from: \n{value!r}\nto:\n{data_attribute}'.format(
-                        fallback_encoding=encoding_fallback,
-                        attribute=attribute,
-                        value=value,
-                        data_attribute=data[attribute],
-                    )
-                )
-                logger.debug(
-                    "Encoding fallback on data:\n{data}".format(data=data)
-                )
-                return True
-            else:
-                raise UnicodeDecodeError(
-                    'encoding={encoding}, fallback_encodings={fallbacks}'.format(
-                        encoding=encoding,
-                        fallbacks=encoding_fallbacks,
-                    ),
-                    value,
-                    0,
-                    0,
-                    'Neither with encoding nor with fallbacks.',
-                )
+        data[attribute] = convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks)
         return True
 
     return decode
