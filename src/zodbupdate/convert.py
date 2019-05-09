@@ -70,7 +70,7 @@ def convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks):
                 converted = value.decode(encoding_fallback)
             except UnicodeDecodeError:
                 continue
-            
+
             logger.warning(
                 'Encoding fallback to "{fallback_encoding:s}" '
                 'while decoding attribute "{attribute:s}" '.format(
@@ -79,7 +79,7 @@ def convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks):
                 )
             )
             logger.debug(
-                "Decoded from: \n{value!r}\nto:\n{converted}".format(
+                u"Decoded from: \n{value!r}\nto:\n{converted}".format(
                     value=value,
                     converted=converted,
                 )
@@ -96,8 +96,9 @@ def convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks):
                 0,
                 'Neither with encoding nor with fallbacks.',
             )
-    
+
     return converted
+
 
 def decode_attribute(attribute, encoding, encoding_fallbacks=None):
 
@@ -109,7 +110,9 @@ def decode_attribute(attribute, encoding, encoding_fallbacks=None):
             if encoding == utils.ENCODING:
                 return False
             value = utils.safe_binary(value)
-        data[attribute] = convert_with_fallbacks(value, attribute, encoding, encoding_fallbacks)
+        data[attribute] = convert_with_fallbacks(
+            value, attribute, encoding, encoding_fallbacks
+        )
         return True
 
     return decode
