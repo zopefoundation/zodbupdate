@@ -12,7 +12,7 @@ your database to the new name before finally deleting the old code.
 This tool looks through all current objects of your database,
 identifies moved/renamed classes and `touches` objects accordingly. It
 creates transactions that contains the update of your database (one
-transaction every 100000 records).
+transaction every 100,000 records).
 
 Having run this tool, you are then free to delete the old code.
 
