@@ -171,7 +171,7 @@ Please note that for the moment only attributes on Persistent classes
 are supported.
 
 Please also note that these conversion rules are _only_ selected for the 
-class that is refrenced in the pickle, rules for superclasses are _not_ 
+class that is referenced in the pickle, rules for superclasses are _not_ 
 applied. This means that you have to push down annotation rules to all 
 the subclasses of a superclass that has a field that needs this annotation.
 
@@ -205,7 +205,7 @@ records triggering those errors will be ignored.
 You have an another error
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-We recommand to run zodbupdate with ``-v -d`` to get the
+We recommend to run zodbupdate with ``-v -d`` to get the
 maximum of information.
 
 If you are working on big storages, you can use the option ``-o`` to
