@@ -340,6 +340,44 @@ class Python2Tests(Tests):
             'C\x08\x00\x00\x00\x00\x00\x00\x00\x02h\x01\x86q\x04Qs.',
             self.storage.load(self.root['test']._p_oid, '')[0])
 
+# XXX: this fails because there's no builtins.set on Python 2 so what gets
+# stored is a call to ZODB.broken.rebuild()
+#
+#  def test_convert_set_to_py3(self):
+#      test = sys.modules['module1'].Factory()
+#      test.favourite_numbers = {0xaa, 0xbb, 0xcc, 0xdd}
+#      self.root['test'] = test
+#      transaction.commit()
+#
+#      self.update(convert_py3=True)
+#
+#      # Protocol is 3 (x80x03) now and __builtin__.set is now builtins.set.
+#      self.assertEqual(
+#          '\x80\x03cmodule1\nFactory\nq\x01.'
+#          '\x80\x03}q\x02U\x11favourite_numbersq\x03cbuiltins\nset\n'
+#          'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
+#          self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_sets_Set_to_py3(self):
+        import sets
+
+        test = sys.modules['module1'].Factory()
+        test.favourite_numbers = sets.Set([0xaa, 0xbb, 0xcc, 0xdd])
+        self.root['test'] = test
+        transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and sets.Set is encoded
+        # as a builtin set
+        # XXX: this should refer to builtins.set, not __builtin__.set, but
+        # see the previous commented-out test about ZODB.broken.rebuild()
+        self.assertEqual(
+            '\x80\x03cmodule1\nFactory\nq\x01.'
+            '\x80\x03}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
+            'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
     def test_convert_datetime_to_py3(self):
         import datetime
 
