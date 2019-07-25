@@ -9,6 +9,19 @@ from zodbupdate import utils
 logger = logging.getLogger('zodbupdate')
 
 
+try:
+    import sets
+except ImportError:
+    pass
+else:
+    class Set(sets.Set):
+        def __reduce__(self):
+            return set(self).__reduce__()
+
+        def __reduce_ex__(self, protocol):
+            return set(self).__reduce_ex__(protocol)
+
+
 class Datetime(datetime.datetime):
 
     def __reduce__(self):
@@ -52,6 +65,7 @@ def default_renames():
     return {
         ('UserDict', 'UserDict'): ('collections', 'UserDict'),
         ('__builtin__', 'set'): ('builtins', 'set'),
+        ('sets', 'Set'): ('zodbupdate.convert', 'Set'),
         ('datetime', 'datetime'): ('zodbupdate.convert', 'Datetime'),
         ('datetime', 'date'): ('zodbupdate.convert', 'Date'),
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}

@@ -4,7 +4,8 @@ Changes
 1.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Support converting sets.Set() objects from ancient Python 2 versions.
+  (`issue 23 <https://github.com/zopefoundation/zodbupdate/issue/23>`_)
 
 
 1.2 (2019-05-09)
