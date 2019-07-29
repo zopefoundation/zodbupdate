@@ -313,7 +313,7 @@ class Python2Tests(Tests):
             'X\x0e\x00\x00\x00text \xc3\xa9l\xc3\xa9gantq\x04s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
 
-    def test_convert_attribute_to_unicode(self):
+    def test_convert_attribute_to_unicode_2(self):
         from zodbupdate.convert import decode_attribute
 
         test = sys.modules['module1'].Factory()
