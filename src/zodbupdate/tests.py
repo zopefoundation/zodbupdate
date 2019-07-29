@@ -13,21 +13,24 @@
 #
 ##############################################################################
 
+import logging
+import os
+import shutil
+import sys
+import tempfile
+import types
+import unittest
+from contextlib import contextmanager
+
 import ZODB
 import ZODB.blob
 import ZODB.broken
 import ZODB.FileStorage
-import os
 import persistent
-import shutil
-import sys
-import tempfile
-import transaction
-import types
-import unittest
-import logging
 import six
+import transaction
 import zope.interface
+
 import zodbupdate.main
 import zodbupdate.serialize
 
@@ -345,6 +348,14 @@ class Python2Tests(Tests):
         test.favourite_numbers = {0xaa, 0xbb, 0xcc, 0xdd}
         self.root['test'] = test
         transaction.commit()
+
+        # This is what a Python 2 pickle looks like -- we'll reuse it
+        # in Python3Tests
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x01.'
+            b'\x80\x03}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
+            b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
 
         self.update(convert_py3=True)
 
@@ -799,6 +810,22 @@ class Python2Tests(Tests):
         )
 
 
+@contextmanager
+def overridePickle(obj_to_override, pickle_data):
+    orig_serialize = ZODB.serialize.ObjectWriter.serialize
+
+    def serialize(self, obj):
+        if obj is obj_to_override:
+            return pickle_data
+        return orig_serialize(self, obj)
+
+    ZODB.serialize.ObjectWriter.serialize = serialize
+    try:
+        yield
+    finally:
+        ZODB.serialize.ObjectWriter.serialize = orig_serialize
+
+
 class Python3Tests(Tests):
 
     def test_convert_attribute_to_bytes(self):
@@ -852,6 +879,27 @@ class Python3Tests(Tests):
             b'\x80\x03cmodule1\nFactory\nq\x00.'
             b'\x80\x03}q\x01X\t\x00\x00\x00referenceq\x02'
             b'C\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x03h\x00\x86q\x04Qs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_set_to_py3(self):
+        test = sys.modules['module1'].Factory()
+        test.favourite_numbers = {0xaa, 0xbb, 0xcc, 0xdd}
+        self.root['test'] = test
+        pickle_data = (
+            b'\x80\x03cmodule1\nFactory\nq\x01.'
+            b'\x80\x03}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
+            b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.'
+        )
+        with overridePickle(test, pickle_data):
+            transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and __builtin__.set is now builtins.set.
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x11\0\0\0favourite_numbersq\x02cbuiltins\nset\n'
+            b'q\x03]q\x04(K\xaaK\xbbK\xccK\xdde\x85q\x05Rq\x06s.',
             self.storage.load(self.root['test']._p_oid, '')[0])
 
     def test_convert_datetime_to_py3(self):
@@ -920,16 +968,8 @@ class Python3Tests(Tests):
             b'\x80\x02cmodule1\nFactory\nq\x01.'
             b'\x80\x02}q\x02U\x06stringq\x03U\x03\xe2\x98\x83q\x04s.'
         )
-        orig_serialize = ZODB.serialize.ObjectWriter.serialize
-        def serialize(self, obj):
-            if obj is test:
-                return data
-            return orig_serialize(self, obj)
-        ZODB.serialize.ObjectWriter.serialize = serialize
-        try:
+        with overridePickle(test, data):
             transaction.commit()
-        finally:
-            ZODB.serialize.ObjectWriter.serialize = orig_serialize
 
         self.update(convert_py3=True, encoding='utf-8')
 
