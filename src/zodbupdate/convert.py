@@ -1,6 +1,7 @@
 import datetime
 import logging
 import sys
+import types
 
 import pkg_resources
 import six
@@ -17,7 +18,6 @@ try:
 except ImportError:
     # Python 2
     import __builtin__
-    import types
 
     # NB: this class _must_ be named 'set', or the pickling trick won't work!
     class set(__builtin__.set):
@@ -40,6 +40,20 @@ except ImportError:
 
         def __reduce_ex__(self, protocol):
             return python3_compatible_set(self).__reduce_ex__(protocol)
+else:
+    # Python 3:
+    class Set(object):
+        def __setstate__(self, data):
+            self._data, = data
+
+        def __reduce__(self):
+            return builtins.set(self._data).__reduce__()
+
+        def __reduce_ex__(self, protocol):
+            return builtins.set(self._data).__reduce_ex__(protocol)
+
+    sys.modules['sets'] = types.ModuleType('sets')
+    sys.modules['sets'].Set = Set
 
 
 class Datetime(datetime.datetime):
