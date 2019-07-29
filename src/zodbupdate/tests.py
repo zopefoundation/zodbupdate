@@ -374,6 +374,14 @@ class Python2Tests(Tests):
         self.root['test'] = test
         transaction.commit()
 
+        # This is what a Python 2 pickle looks like -- we'll reuse it
+        # in Python3Tests
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x01.'
+            b'\x80\x03}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
+            b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85bs.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
         self.update(convert_py3=True)
 
         # Protocol is 3 (x80x03) now and sets.Set is encoded
@@ -889,6 +897,27 @@ class Python3Tests(Tests):
             b'\x80\x03cmodule1\nFactory\nq\x01.'
             b'\x80\x03}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
             b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.'
+        )
+        with overridePickle(test, pickle_data):
+            transaction.commit()
+
+        self.update(convert_py3=True)
+
+        # Protocol is 3 (x80x03) now and __builtin__.set is now builtins.set.
+        self.assertEqual(
+            b'\x80\x03cmodule1\nFactory\nq\x00.'
+            b'\x80\x03}q\x01X\x11\0\0\0favourite_numbersq\x02cbuiltins\nset\n'
+            b'q\x03]q\x04(K\xaaK\xbbK\xccK\xdde\x85q\x05Rq\x06s.',
+            self.storage.load(self.root['test']._p_oid, '')[0])
+
+    def test_convert_sets_Set_to_py3(self):
+        test = sys.modules['module1'].Factory()
+        test.favourite_numbers = {0xaa, 0xbb, 0xcc, 0xdd}
+        self.root['test'] = test
+        pickle_data = (
+            b'\x80\x03cmodule1\nFactory\nq\x01.'
+            b'\x80\x03}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
+            b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85bs.'
         )
         with overridePickle(test, pickle_data):
             transaction.commit()
