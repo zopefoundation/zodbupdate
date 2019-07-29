@@ -1,8 +1,11 @@
-import logging
-import six
 import datetime
-import zodbpickle
+import logging
+import sys
+
 import pkg_resources
+import six
+import zodbpickle
+
 from zodbupdate import utils
 
 
@@ -10,16 +13,33 @@ logger = logging.getLogger('zodbupdate')
 
 
 try:
-    import sets
+    import builtins  # noqa: F401, unused import
 except ImportError:
-    pass
-else:
+    # Python 2
+    import __builtin__
+    import types
+
+    # NB: this class _must_ be named 'set', or the pickling trick won't work!
+    class set(__builtin__.set):
+        """A set that pickles exactly as it would on Python 3."""
+        __module__ = 'builtins'
+        __slots__ = ()
+    # but let's not override builtins willy-nilly here
+    python3_compatible_set = set
+    del set
+
+    sys.modules['builtins'] = types.ModuleType('builtins')
+    sys.modules['builtins'].set = python3_compatible_set
+
+    import sets
+
     class Set(sets.Set):
+        """A sets.Set that pickles exactly as a Python 3 builtin set."""
         def __reduce__(self):
-            return set(self).__reduce__()
+            return python3_compatible_set(self).__reduce__()
 
         def __reduce_ex__(self, protocol):
-            return set(self).__reduce_ex__(protocol)
+            return python3_compatible_set(self).__reduce_ex__(protocol)
 
 
 class Datetime(datetime.datetime):
