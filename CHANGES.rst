@@ -1,7 +1,7 @@
 Changes
 =======
 
-1.3 (unreleased)
+1.3 (2019-07-30)
 ----------------
 
 - Support converting sets.Set() objects from ancient Python 2 versions.
