@@ -1,12 +1,59 @@
-import logging
-import six
 import datetime
-import zodbpickle
+import logging
+import sys
+import types
+
 import pkg_resources
+import six
+import zodbpickle
+
 from zodbupdate import utils
 
 
 logger = logging.getLogger('zodbupdate')
+
+
+try:
+    import builtins  # noqa: F401, unused import
+except ImportError:
+    # Python 2
+    import __builtin__
+
+    # NB: this class _must_ be named 'set', or the pickling trick won't work!
+    class set(__builtin__.set):
+        """A set that pickles exactly as it would on Python 3."""
+        __module__ = 'builtins'
+        __slots__ = ()
+    # but let's not override builtins willy-nilly here
+    python3_compatible_set = set
+    del set
+
+    sys.modules['builtins'] = types.ModuleType('builtins')
+    sys.modules['builtins'].set = python3_compatible_set
+
+    import sets
+
+    class Set(sets.Set):
+        """A sets.Set that pickles exactly as a Python 3 builtin set."""
+        def __reduce__(self):
+            return python3_compatible_set(self).__reduce__()
+
+        def __reduce_ex__(self, protocol):
+            return python3_compatible_set(self).__reduce_ex__(protocol)
+else:
+    # Python 3:
+    class Set(object):
+        def __setstate__(self, data):
+            self._data, = data
+
+        def __reduce__(self):
+            return builtins.set(self._data).__reduce__()
+
+        def __reduce_ex__(self, protocol):
+            return builtins.set(self._data).__reduce_ex__(protocol)
+
+    sys.modules['sets'] = types.ModuleType('sets')
+    sys.modules['sets'].Set = Set
 
 
 class Datetime(datetime.datetime):
@@ -52,6 +99,7 @@ def default_renames():
     return {
         ('UserDict', 'UserDict'): ('collections', 'UserDict'),
         ('__builtin__', 'set'): ('builtins', 'set'),
+        ('sets', 'Set'): ('zodbupdate.convert', 'Set'),
         ('datetime', 'datetime'): ('zodbupdate.convert', 'Datetime'),
         ('datetime', 'date'): ('zodbupdate.convert', 'Date'),
         ('datetime', 'time'): ('zodbupdate.convert', 'Time')}

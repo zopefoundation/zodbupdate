@@ -4,7 +4,11 @@ Changes
 1.3 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Support converting sets.Set() objects from ancient Python 2 versions.
+  (`issue 23 <https://github.com/zopefoundation/zodbupdate/issue/23>`_)
+
+- Convert set objects to ``builtins.set`` without relying on ZODB.broken.rebuild.
+  (`issue 25 <https://github.com/zopefoundation/zodbupdate/pull/25>`_)
 
 
 1.2 (2019-05-09)
