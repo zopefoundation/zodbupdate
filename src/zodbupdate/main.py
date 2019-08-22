@@ -192,7 +192,7 @@ def main():
     # doesn't complain.
     if args.convert_py3 and six.PY3 and not args.dry_run:
         zodbupdate.convert.update_magic_data_fs(args.file)
-    elif six.PY3 and args.dry_run:
+    elif args.convert_py3 and six.PY3 and args.dry_run:
         zodb_magic = zodbupdate.utils.get_zodb_magic(args.file)
         if zodb_magic != ZODB.FileStorage.packed_version:
             raise AssertionError(
