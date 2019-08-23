@@ -195,7 +195,7 @@ def main():
     elif args.convert_py3 and six.PY3 and args.dry_run:
         zodb_magic = zodbupdate.utils.get_zodb_magic(args.file)
         if zodb_magic != ZODB.FileStorage.packed_version:
-            raise AssertionError(
+            raise SystemExit(
                 'You cannot use --dry-run under Python 3 with a ZODB '
                 'created under Python 2 as --dry-run does not rewrite the '
                 'magic header data before opening the ZODB file.')
