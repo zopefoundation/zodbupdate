@@ -1,8 +1,13 @@
 Changes
 =======
 
+1.5 (unreleased)
+----------------
+
+
 1.4 (2019-08-23)
 ----------------
+
 - Fail with explanation when opening a Python 2 ZODB with --dry-run on Python 3
   (`#22 <https://github.com/zopefoundation/zodbupdate/issues/22>`_)
 
