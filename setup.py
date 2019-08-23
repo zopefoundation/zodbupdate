@@ -52,7 +52,7 @@ setup(name='zodbupdate',
           read('README.rst')
           + '\n' +
           read('CHANGES.rst')),
-      version='1.4.dev0',
+      version='1.4',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
