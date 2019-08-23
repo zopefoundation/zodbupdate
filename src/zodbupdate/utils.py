@@ -93,3 +93,9 @@ def safe_binary(value):
     if isinstance(value, six.text_type):
         return zodbpickle.binary(value.encode(ENCODING))
     return value
+
+
+def get_zodb_magic(filepath):
+    """ Read the first four bytes of a ZODB file to get its magic """
+    with open(filepath, 'rb') as fp:
+        return fp.read(4)
