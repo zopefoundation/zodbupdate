@@ -12,19 +12,21 @@
 #
 ##############################################################################
 
-from ZODB.blob import BlobStorage
-from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration
-from ZODB.FileStorage import FileStorage
+import io
+import logging
 from struct import pack, unpack
+
 import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
 import six
-import io
-import logging
 import transaction
 import zodbupdate.serialize
 import zodbupdate.utils
+from ZODB.FileStorage import FileStorage
+from ZODB.blob import BlobStorage
+from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
+
 
 logger = logging.getLogger('zodbupdate')
 
@@ -146,7 +148,8 @@ class Updater(object):
                 if next is None:
                     break
         elif (IStorageIteration.providedBy(storage) and
-              not storage.supportsUndo()):
+              (not IStorageUndoable.providedBy(self.storage) or
+               not self.storage.supportsUndo())):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
             for transaction_ in storage.iterator():
