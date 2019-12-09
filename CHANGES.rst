@@ -4,6 +4,9 @@ Changes
 1.5 (unreleased)
 ----------------
 
+- Added support for history-free RelStorage
+  (`#28 <https://github.com/zopefoundation/zodbupdate/issues/28>`_)
+
 
 1.4 (2019-08-23)
 ----------------
