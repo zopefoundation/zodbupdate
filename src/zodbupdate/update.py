@@ -148,8 +148,8 @@ class Updater(object):
                 if next is None:
                     break
         elif (IStorageIteration.providedBy(storage) and
-              (not IStorageUndoable.providedBy(self.storage) or
-               not self.storage.supportsUndo())):
+              (not IStorageUndoable.providedBy(storage) or
+               not storage.supportsUndo())):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
             for transaction_ in storage.iterator():
