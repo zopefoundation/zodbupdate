@@ -6,7 +6,6 @@ import types
 import pkg_resources
 import six
 import zodbpickle
-
 from zodbupdate import utils
 
 

@@ -12,12 +12,12 @@
 #
 ##############################################################################
 
-import ZODB._compat
 import logging
-import six
 import sys
-import zodbpickle
 
+import ZODB._compat
+import six
+import zodbpickle
 from ZODB.broken import Broken
 
 
