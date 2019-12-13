@@ -13,7 +13,7 @@
 ##############################################################################
 
 from ZODB.blob import BlobStorage
-from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration
+from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
 from ZODB.FileStorage import FileStorage
 from struct import pack, unpack
 import ZODB.POSException
@@ -146,7 +146,8 @@ class Updater(object):
                 if next is None:
                     break
         elif (IStorageIteration.providedBy(storage) and
-              not storage.supportsUndo()):
+              (not IStorageUndoable.providedBy(storage) or
+               not storage.supportsUndo())):
             # If we can't iterate only through the recent records,
             # iterate on all. Of course doing a pack before help :).
             for transaction_ in storage.iterator():
