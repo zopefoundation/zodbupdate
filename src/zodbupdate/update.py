@@ -12,19 +12,21 @@
 #
 ##############################################################################
 
-from ZODB.blob import BlobStorage
-from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
-from ZODB.FileStorage import FileStorage
+import io
+import logging
 from struct import pack, unpack
+
 import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
 import six
-import io
-import logging
 import transaction
 import zodbupdate.serialize
 import zodbupdate.utils
+from ZODB.FileStorage import FileStorage
+from ZODB.blob import BlobStorage
+from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
+
 
 logger = logging.getLogger('zodbupdate')
 

@@ -12,18 +12,20 @@
 #
 ##############################################################################
 
+import argparse
+import logging
+import pprint
+import time
+
 import ZODB.FileStorage
 import ZODB.config
 import ZODB.serialize
-import logging
-import argparse
 import pkg_resources
-import pprint
 import six
-import time
 import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils
+
 
 logger = logging.getLogger('zodbupdate')
 

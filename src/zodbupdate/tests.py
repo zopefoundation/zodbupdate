@@ -23,16 +23,15 @@ import unittest
 from contextlib import contextmanager
 
 import ZODB
+import ZODB.FileStorage
 import ZODB.blob
 import ZODB.broken
-import ZODB.FileStorage
 import persistent
 import six
 import transaction
-import zope.interface
-
 import zodbupdate.main
 import zodbupdate.serialize
+import zope.interface
 
 
 class TestsBasics(unittest.TestCase):
