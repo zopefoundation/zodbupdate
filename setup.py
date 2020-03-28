@@ -53,6 +53,7 @@ setup(name='zodbupdate',
           + '\n' +
           read('CHANGES.rst')),
       version='1.5.dev0',
+      keywords='zodb update upgrade migrate data pickle',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
