@@ -104,11 +104,17 @@ class Tests(unittest.TestCase):
         sys.modules['module2.interfaces'] = types.ModuleType(
             'module2.interfaces')
 
-        class IFactory(zope.interface.Interface):
-            pass
+        IFactory = zope.interface.interface.InterfaceClass(
+            'IFactory',
+            (zope.interface.Interface,),
+            {'__module__': 'module1.interfaces'},
+        )
 
-        class IOtherFactory(zope.interface.Interface):
-            pass
+        IOtherFactory = zope.interface.interface.InterfaceClass(
+            'IOtherFactory',
+            (zope.interface.Interface,),
+            {'__module__': 'module2.interfaces'},
+        )
 
         class Data(object):
             pass
@@ -130,12 +136,11 @@ class Tests(unittest.TestCase):
         OldData.__module__ = 'module1'
         sys.modules['module1'].interfaces = sys.modules['module1.interfaces']
         sys.modules['module1.interfaces'].IFactory = IFactory
-        IFactory.__module__ = 'module1.interfaces'
+
         sys.modules['module2'].OtherFactory = OtherFactory
         OtherFactory.__module__ = 'module2'
         sys.modules['module2'].interfaces = sys.modules['module2.interfaces']
         sys.modules['module2.interfaces'].IOtherFactory = IOtherFactory
-        IOtherFactory.__module__ = 'module2.interfaces'
 
         self.tmphnd, self.dbfile = tempfile.mkstemp()
         self.tmpblob = tempfile.mkdtemp()
@@ -732,9 +737,13 @@ class Python2Tests(Tests):
         self.assertEqual({}, renames)
 
     def test_loaded_renames_override_missing_interfaces(self):
-        class IModule1(zope.interface.Interface):
-            pass
-        IModule1.__module__ = 'module1'
+        IModule1 = zope.interface.interface.InterfaceClass(
+            'IModule1',
+            (zope.interface.Interface,),
+            {'__module__': 'module1'},
+        )
+
+
         sys.modules['module1'].IModule1 = IModule1
 
         factory = self.root['test'] = sys.modules['module1'].Factory()
@@ -1221,9 +1230,11 @@ class Python3Tests(Tests):
         self.assertEqual({}, renames)
 
     def test_loaded_renames_override_missing_interfaces(self):
-        class IModule1(zope.interface.Interface):
-            pass
-        IModule1.__module__ = 'module1'
+        IModule1 = zope.interface.interface.InterfaceClass(
+            'IModule1',
+            (zope.interface.Interface,),
+            {'__module__': 'module1'},
+        )
         sys.modules['module1'].IModule1 = IModule1
 
         factory = self.root['test'] = sys.modules['module1'].Factory()

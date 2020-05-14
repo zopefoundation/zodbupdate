@@ -7,6 +7,9 @@ Changes
 - Added support for history-free RelStorage
   (`#28 <https://github.com/zopefoundation/zodbupdate/issues/28>`_)
 
+- Support zope.interface >= 5 in tests.
+  (`issue 32 <https://github.com/zopefoundation/zodbupdate/issues/32>`_)
+
 
 1.4 (2019-08-23)
 ----------------
