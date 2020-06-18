@@ -202,8 +202,8 @@ Your Data.fs has POSKey errors
 If you call `zodbupdate` with ``-f`` and the path to your Data.fs,
 records triggering those errors will be ignored.
 
-You have an another error
-~~~~~~~~~~~~~~~~~~~~~~~~~
+You have another error
+~~~~~~~~~~~~~~~~~~~~~~
 
 We recommend to run zodbupdate with ``-v -d`` to get the
 maximum of information.
