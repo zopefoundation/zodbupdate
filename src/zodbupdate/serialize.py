@@ -127,7 +127,7 @@ class ZODBBroken(Broken):
 
 
 class ZODBReference(object):
-    """Class to remenber reference we don't want to touch.
+    """Class to remember reference we don't want to touch.
     """
 
     def __init__(self, ref):
