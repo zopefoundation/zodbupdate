@@ -4,6 +4,9 @@ Changes
 1.5 (unreleased)
 ----------------
 
+- Fixed incompatibility with ZODB 5.6
+  (`#35 <https://github.com/zopefoundation/zodbupdate/issues/35>`_)
+
 - Added support for history-free RelStorage
   (`#28 <https://github.com/zopefoundation/zodbupdate/issues/28>`_)
 
