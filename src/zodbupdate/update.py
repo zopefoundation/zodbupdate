@@ -23,6 +23,7 @@ import six
 import transaction
 import zodbupdate.serialize
 import zodbupdate.utils
+from ZODB.Connection import TransactionMetaData
 from ZODB.FileStorage import FileStorage
 from ZODB.blob import BlobStorage
 from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
@@ -55,7 +56,7 @@ class Updater(object):
         self.debug = debug
 
     def __new_transaction(self):
-        t = transaction.Transaction()
+        t = TransactionMetaData()
         self.storage.tpc_begin(t)
         t.note(six.u('Updated factory references using `zodbupdate`.'))
         return t
