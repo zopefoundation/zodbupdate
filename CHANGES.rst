@@ -1,7 +1,7 @@
 Changes
 =======
 
-1.5 (unreleased)
+1.5 (2020-07-28)
 ----------------
 
 - Fixed incompatibility with ZODB 5.6
