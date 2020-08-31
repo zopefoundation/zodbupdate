@@ -5,7 +5,8 @@ Changes
 ----------------
 
 - Test with history-free and history-preserving RelStorage. Note that
-  history-preserving RelStorage requires RelStorage 3.3 or above.
+  history-preserving RelStorage requires RelStorage 3.3 or above, and
+  Python 2.7 or Python 3.6 and above.
   (`#30 <https://github.com/zopefoundation/zodbupdate/issues/30>`__)
 
 

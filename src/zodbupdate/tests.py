@@ -1353,9 +1353,16 @@ class Python2RelStorageHPTests(RelStorageHPMixin, Python2Tests):
     pass
 
 
+# On Python 3, the RelStorage sqlite support is only available with Python 3.6
+# and above.
+
+@unittest.skipIf(sys.version_info[:2] < (3, 6),
+                 "RelStorage+sqlite only available on Python 3.6+")
 class Python3RelStorageHFTests(RelStorageHFMixin, Python3Tests):
     pass
 
 
+@unittest.skipIf(sys.version_info[:2] < (3, 6),
+                 "RelStorage+sqlite only available on Python 3.6+")
 class Python3RelStorageHPTests(RelStorageHPMixin, Python3Tests):
     pass
