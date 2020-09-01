@@ -23,6 +23,7 @@ def read(x):
 tests_require = [
     'persistent',
     'zope.interface',
+    'relstorage',
 ]
 
 setup(name='zodbupdate',
