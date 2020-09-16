@@ -4,6 +4,9 @@ Changes
 1.6 (unreleased)
 ----------------
 
+- ZODBReference is now callable to fix an unpickling error.
+  (`#20 <https://github.com/zopefoundation/zodbupdate/issues/20>`__)
+
 - Test with history-free and history-preserving RelStorage. Note that
   history-preserving RelStorage requires RelStorage 3.3 or above, and
   Python 2.7 or Python 3.6 and above.
