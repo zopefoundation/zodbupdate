@@ -70,10 +70,12 @@ parser.add_argument(
     help="used for decoding pickled strings in py3"
 )
 parser.add_argument(
-    '--encoding-fallback', dest="encoding_fallbacks", nargs="*",
-    help="Older databases may have other encoding stored than 'utf-8', like latin1."
-         "If an encoding error occurs, fallback to the given encodings "
-         "and issue a warning.",
+    '--encoding-fallback',
+    dest="encoding_fallbacks",
+    nargs="*",
+    help="Older databases may have other encoding stored than 'utf-8', like"
+    " latin1. If an encoding error occurs, fallback to the given encodings "
+    "and issue a warning.",
 )
 
 

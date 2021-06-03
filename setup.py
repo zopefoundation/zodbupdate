@@ -47,6 +47,7 @@ setup(name='zodbupdate',
           "Programming Language :: Python :: 3.6",
           "Programming Language :: Python :: 3.7",
           "Programming Language :: Python :: 3.8",
+          "Programming Language :: Python :: 3.9",
           "Programming Language :: Python :: Implementation :: CPython",
       ],
       long_description=(
@@ -71,4 +72,4 @@ setup(name='zodbupdate',
           "console_scripts": ['zodbupdate = zodbupdate.main:main']
       },
       test_suite="zodbupdate.tests.test_suite",
-)
+      )

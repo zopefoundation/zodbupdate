@@ -34,6 +34,7 @@ import zodbupdate.serialize
 
 # pylint:disable=protected-access,too-many-lines
 
+
 class TestsBasics(unittest.TestCase):
     """Basic tests without the need of mocked or integrated code
     """
@@ -60,7 +61,8 @@ class TestsBasics(unittest.TestCase):
         with self.assertRaises(UnicodeDecodeError):
             decoder(data=test_data)
 
-        # 2.1) with utf8 encoding and 2 fallbacks, first fails too, input is utf8
+        # 2.1) with utf8 encoding and 2 fallbacks, first fails too, input is
+        # utf8
         decoder = decode_attribute(
             attribute='testattr',
             encoding='utf8',
@@ -161,9 +163,9 @@ class StorageUpdateMixin(object):
         The storage should support blobs.
 
         This method should use *self.temp_dir* as a temporary
-        directory to store any files needed. This directory, and all its children,
-        will be removed when the test is torn down *after* closing the storage
-        returned by this method.
+        directory to store any files needed. This directory, and all its
+        children, will be removed when the test is torn down *after* closing
+        the storage returned by this method.
         """
         from ZODB.FileStorage import FileStorage
         from ZODB.blob import BlobStorage
@@ -216,10 +218,10 @@ class StorageUpdateMixin(object):
 
     def _tearDownStorage(self):
         """
-        Called during *tearDown* to clean up storage-specific artifacts.
+        Called during *tearDown* to clean up storage-specific artefacts.
 
-        This is called after the storage has been closed, but before *self.temp_dir*
-        has been removed.
+        This is called after the storage has been closed, but before
+        *self.temp_dir* has been removed.
 
         Subclasses can override if they need to do more work than just removing
         *self.temp_dir*.
@@ -279,7 +281,8 @@ class AnyPythonTestsMixin(StorageUpdateMixin):
         self.root['skipped'] = skipped
         transaction.commit()
         self.assertIn(('ZODB.blob', 'Blob'), zodbupdate.serialize.SKIP_SYMBS)
-        zodbupdate.serialize.SKIP_SYMBS = self._skipped_symbs + [('module1', 'Factory')]
+        zodbupdate.serialize.SKIP_SYMBS = self._skipped_symbs + \
+            [('module1', 'Factory')]
         oid = self.root['skipped']._p_oid
         old_pickle, old_serial = self.storage.load(oid)
         self.update(
@@ -409,7 +412,7 @@ class Python2TestsMixin(object):
             self.storage.load(self.root['test']._p_oid, '')[0])
 
     def test_convert_sets_Set_to_py3(self):
-        import sets # pylint:disable=import-error
+        import sets  # pylint:disable=import-error
 
         test = sys.modules['module1'].Factory()
         test.favourite_numbers = sets.Set([0xaa, 0xbb, 0xcc, 0xdd])
@@ -424,11 +427,13 @@ class Python2TestsMixin(object):
                 # ZODB < 5.4
                 b'\x80\x02cmodule1\nFactory\nq\x01.'
                 b'\x80\x02}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
-                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85bs.',
+                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85'
+                b'bs.',
                 # ZODB >= 5.4
                 b'\x80\x03cmodule1\nFactory\nq\x01.'
                 b'\x80\x03}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
-                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85bs.',
+                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85'
+                b'bs.',
             )
         )
 
@@ -773,7 +778,6 @@ class Python2TestsMixin(object):
             {'__module__': 'module1'},
         )
 
-
         sys.modules['module1'].IModule1 = IModule1
 
         factory = self.root['test'] = sys.modules['module1'].Factory()
@@ -826,10 +830,12 @@ class Python2TestsMixin(object):
             (
                 # ZODB < 5.4
                 '\x80\x02cmodule1\nFactory\nq\x01.'
-                '\x80\x02}q\x02U\x04dataq\x03(cmodule1\nOldData\nq\x04oq\x05}q\x06bs.'
+                '\x80\x02}q\x02U\x04dataq\x03(cmodule1\nOldData'
+                '\nq\x04oq\x05}q\x06bs.'
                 # ZODB >= 5.4
                 '\x80\x03cmodule1\nFactory\nq\x01.'
-                '\x80\x03}q\x02U\x04dataq\x03(cmodule1\nOldData\nq\x04oq\x05}q\x06bs.'
+                '\x80\x03}q\x02U\x04dataq\x03(cmodule1\nOldData'
+                '\nq\x04oq\x05}q\x06bs.'
             )
         )
 
@@ -1328,7 +1334,8 @@ class RelStorageHFMixin(object):
 
     def _makeStorage(self):
         if sys.version_info[0] > 2 and sys.version_info[:2] < (3, 6):
-            raise unittest.SkipTest('RelStorage+sqlite requires Python 2.7 or 3.6+')
+            raise unittest.SkipTest(
+                'RelStorage+sqlite requires Python 2.7 or 3.6+')
 
         from ZODB import config
         return self._validate_relstorage(config.storageFromString(
@@ -1364,10 +1371,12 @@ class RelStorageHPMixin(RelStorageHFMixin):
         assert IStorageUndoable.providedBy(storage)
 
         if not IStorageCurrentRecordIteration.providedBy(storage):
-            # This is required for history-preserving storages. It is implemented in
-            # RelStorage 3.3+. See https://github.com/zodb/relstorage/issues/389
+            # This is required for history-preserving storages. It is
+            # implemented in RelStorage 3.3+. See
+            # https://github.com/zodb/relstorage/issues/389
             storage.close()
-            raise unittest.SkipTest("History-preserving RelStorage requires RelStorage 3.3")
+            raise unittest.SkipTest(
+                "History-preserving RelStorage requires RelStorage 3.3")
         return storage
 
 ###
@@ -1376,63 +1385,95 @@ class RelStorageHPMixin(RelStorageHFMixin):
 # and in case we need to add specific test methods to one in particular.
 ###
 
-class FileStorageAnyPythonTests(FileStorageMixin, AnyPythonTestsMixin, StorageUpdateMixin,
-                                unittest.TestCase):
+
+class FileStorageAnyPythonTests(
+        FileStorageMixin,
+        AnyPythonTestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHFAnyPythonTests(RelStorageHFMixin, AnyPythonTestsMixin, StorageUpdateMixin,
-                                 unittest.TestCase):
+class RelStorageHFAnyPythonTests(
+        RelStorageHFMixin,
+        AnyPythonTestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHPAnyPythonTests(RelStorageHPMixin, AnyPythonTestsMixin, StorageUpdateMixin,
-                                 unittest.TestCase):
+class RelStorageHPAnyPythonTests(
+        RelStorageHPMixin,
+        AnyPythonTestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class FileStoragePython2Tests(FileStorageMixin, Python2TestsMixin, StorageUpdateMixin,
-                              unittest.TestCase):
+class FileStoragePython2Tests(
+        FileStorageMixin,
+        Python2TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHFPython2Tests(RelStorageHFMixin, Python2TestsMixin, StorageUpdateMixin,
-                               unittest.TestCase):
+class RelStorageHFPython2Tests(
+        RelStorageHFMixin,
+        Python2TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHPPython2Tests(RelStorageHPMixin, Python2TestsMixin, StorageUpdateMixin,
-                               unittest.TestCase):
+class RelStorageHPPython2Tests(
+        RelStorageHPMixin,
+        Python2TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class FileStoragePython3Tests(FileStorageMixin, Python3TestsMixin, StorageUpdateMixin,
-                              unittest.TestCase):
+class FileStoragePython3Tests(
+        FileStorageMixin,
+        Python3TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHFPython3Tests(RelStorageHFMixin, Python3TestsMixin, StorageUpdateMixin,
-                               unittest.TestCase):
+class RelStorageHFPython3Tests(
+        RelStorageHFMixin,
+        Python3TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 
-class RelStorageHPPython3Tests(RelStorageHPMixin, Python3TestsMixin, StorageUpdateMixin,
-                               unittest.TestCase):
+class RelStorageHPPython3Tests(
+        RelStorageHPMixin,
+        Python3TestsMixin,
+        StorageUpdateMixin,
+        unittest.TestCase):
     pass
 
 # The above can also be done completely dynamically,
 # or even be generated with code like this:
 
 # for test_base in (AnyPythonTestsMixin, Python2TestsMixin, Python3TestsMixin):
-#     for storage_mixin in (FileStorageMixin, RelStorageHFMixin, RelStorageHPMixin):
+#     for storage_mixin in (FileStorageMixin, RelStorageHFMixin,
+#                           RelStorageHPMixin):
 #         kind = type(
-#             storage_mixin.__name__.replace('Mixin', '') + test_base.__name__.replace('Mixin', ''),
-#             (storage_mixin, test_base, StorageUpdateMixin, unittest.TestCase),
+#             storage_mixin.__name__.replace('Mixin', '')
+#             + test_base.__name__.replace('Mixin', ''),
+#             (storage_mixin, test_base, StorageUpdateMixin,
+#              unittest.TestCase),
 #             {}
 #         )
 #         # Code generation
-#         stmt = ("class %s%s:\n    pass" % (kind.__name__,
-#                                    tuple(b.__name__ for b in kind.__bases__)))
+#         stmt = ("class %s%s:\n    pass" % (
+#             kind.__name__,
+#             tuple(b.__name__ for b in kind.__bases__)))
 #         stmt = stmt.replace("'", "")
 #         print(stmt)
 #         # Dynamic class registration for automatic unittest discovery.
