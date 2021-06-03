@@ -26,6 +26,7 @@ jobs:
         - ["3.8",   "py38"]
         - ["3.9",   "py39"]
         - ["3.8",   "coverage"]
+        - ["2.7",   "py27-oldzodb"]
 
     runs-on: ubuntu-latest
     name: ${{ matrix.config[1] }}

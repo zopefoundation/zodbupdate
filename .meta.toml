@@ -13,6 +13,21 @@ with-sphinx-doctests = false
 
 [tox]
 use-flake8 = true
+additional-envlist = [
+    "py27-oldzodb",
+    ]
+testenv-additional = [
+    "",
+    "[testenv:py27-oldzodb]",
+    "deps =",
+    "    {[testenv]deps}",
+    "    ZODB < 5.4",
+    ]
+
+[github-actions]
+additional-config = [
+    "- [\"2.7\",   \"py27-oldzodb\"]",
+    ]
 
 [coverage]
 fail-under = 67
