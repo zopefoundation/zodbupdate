@@ -1,0 +1,36 @@
+# Generated from:
+# https://github.com/zopefoundation/meta/tree/master/config/pure-python
+[meta]
+template = "pure-python"
+commit-id = "f5cf3da840b03411e7dc48ddaead1912fdcba55b"
+
+[python]
+with-appveyor = false
+with-pypy = false
+with-legacy-python = true
+with-docs = false
+with-sphinx-doctests = false
+
+[tox]
+use-flake8 = true
+additional-envlist = [
+    "py27-oldzodb",
+    ]
+testenv-additional = [
+    "",
+    "[testenv:py27-oldzodb]",
+    "deps =",
+    "    {[testenv]deps}",
+    "    ZODB < 5.4",
+    "    transaction < 3",
+    "    Relstorage < 3.1",
+    "    ZEO < 5",
+    ]
+
+[github-actions]
+additional-config = [
+    "- [\"2.7\",   \"py27-oldzodb\"]",
+    ]
+
+[coverage]
+fail-under = 67

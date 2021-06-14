@@ -87,6 +87,7 @@ def Pickler(
 
 ENCODING = sys.getdefaultencoding()
 
+
 def safe_binary(value):
     if isinstance(value, bytes):
         return zodbpickle.binary(value)

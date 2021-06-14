@@ -9,6 +9,8 @@ Changes
   Python 2.7 or Python 3.6 and above.
   (`#30 <https://github.com/zopefoundation/zodbupdate/issues/30>`__)
 
+- Add support for Python 3.9.
+
 
 1.5 (2020-07-28)
 ----------------

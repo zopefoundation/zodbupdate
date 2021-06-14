@@ -34,6 +34,7 @@ except ImportError:
 
     class Set(sets.Set):
         """A sets.Set that pickles exactly as a Python 3 builtin set."""
+
         def __reduce__(self):
             return python3_compatible_set(self).__reduce__()
 

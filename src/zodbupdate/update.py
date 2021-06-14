@@ -20,13 +20,14 @@ import ZODB.POSException
 import ZODB.broken
 import ZODB.utils
 import six
-import transaction
 import zodbupdate.serialize
 import zodbupdate.utils
 from ZODB.Connection import TransactionMetaData
 from ZODB.FileStorage import FileStorage
 from ZODB.blob import BlobStorage
-from ZODB.interfaces import IStorageCurrentRecordIteration, IStorageIteration, IStorageUndoable
+from ZODB.interfaces import IStorageCurrentRecordIteration
+from ZODB.interfaces import IStorageIteration
+from ZODB.interfaces import IStorageUndoable
 
 
 logger = logging.getLogger('zodbupdate')
