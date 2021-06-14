@@ -218,7 +218,7 @@ class StorageUpdateMixin(object):
 
     def _tearDownStorage(self):
         """
-        Called during *tearDown* to clean up storage-specific artefacts.
+        Called during *tearDown* to clean up storage-specific artifacts.
 
         This is called after the storage has been closed, but before
         *self.temp_dir* has been removed.
