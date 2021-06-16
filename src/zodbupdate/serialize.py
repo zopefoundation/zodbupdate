@@ -133,6 +133,11 @@ class ZODBReference(object):
     def __init__(self, ref):
         self.ref = ref
 
+    def __call__(self):
+        """ We need an empty __call__
+        """
+        pass
+
 
 class ObjectRenamer(object):
     """This load and save a ZODB record, modifying all references to
