@@ -17,11 +17,13 @@ import logging
 import pprint
 import time
 
-import ZODB.FileStorage
-import ZODB.config
-import ZODB.serialize
 import pkg_resources
 import six
+
+import ZODB.config
+import ZODB.FileStorage
+import ZODB.serialize
+
 import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils

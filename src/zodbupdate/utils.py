@@ -15,8 +15,9 @@
 import logging
 import sys
 
-import ZODB._compat
 import six
+
+import ZODB._compat
 import zodbpickle
 from ZODB.broken import Broken
 

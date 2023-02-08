@@ -22,15 +22,17 @@ import types
 import unittest
 from contextlib import contextmanager
 
+import six
+
+import persistent
+import transaction
 import ZODB
 import ZODB.broken
-import persistent
-import six
-import transaction
 import zope.interface
 
 import zodbupdate.main
 import zodbupdate.serialize
+
 
 # pylint:disable=protected-access,too-many-lines
 
@@ -167,8 +169,8 @@ class StorageUpdateMixin(object):
         children, will be removed when the test is torn down *after* closing
         the storage returned by this method.
         """
-        from ZODB.FileStorage import FileStorage
         from ZODB.blob import BlobStorage
+        from ZODB.FileStorage import FileStorage
 
         blob_dir = os.path.join(self.temp_dir, 'blobs')
         dbfile = os.path.join(self.temp_dir, 'Data.fs')
@@ -1313,8 +1315,8 @@ class FileStorageMixin(object):
     """
 
     def _makeStorage(self):
-        from ZODB.FileStorage import FileStorage
         from ZODB.blob import BlobStorage
+        from ZODB.FileStorage import FileStorage
 
         blob_dir = os.path.join(self.temp_dir, 'blobs')
         dbfile = os.path.join(self.temp_dir, 'Data.fs')

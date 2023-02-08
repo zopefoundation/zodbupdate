@@ -19,8 +19,12 @@ import sys
 import types
 
 import six
+
 import zodbpickle
-from ZODB.broken import Broken, find_global, rebuild
+from ZODB.broken import Broken
+from ZODB.broken import find_global
+from ZODB.broken import rebuild
+
 from zodbupdate import utils
 
 

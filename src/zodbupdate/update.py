@@ -14,20 +14,23 @@
 
 import io
 import logging
-from struct import pack, unpack
+from struct import pack
+from struct import unpack
 
-import ZODB.POSException
-import ZODB.broken
-import ZODB.utils
 import six
-import zodbupdate.serialize
-import zodbupdate.utils
+
+import ZODB.broken
+import ZODB.POSException
+import ZODB.utils
+from ZODB.blob import BlobStorage
 from ZODB.Connection import TransactionMetaData
 from ZODB.FileStorage import FileStorage
-from ZODB.blob import BlobStorage
 from ZODB.interfaces import IStorageCurrentRecordIteration
 from ZODB.interfaces import IStorageIteration
 from ZODB.interfaces import IStorageUndoable
+
+import zodbupdate.serialize
+import zodbupdate.utils
 
 
 logger = logging.getLogger('zodbupdate')
@@ -103,8 +106,8 @@ class Updater(object):
         except Exception as error:
             if not self.debug:
                 raise
-            import sys
             import pdb
+            import sys
             (type, value, traceback) = sys.exc_info()
             pdb.post_mortem(traceback)
             del traceback
