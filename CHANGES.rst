@@ -4,6 +4,8 @@ Changes
 2.0 (unreleased)
 ----------------
 
+- Drop support for Python 2.7, 3.5, 3.6.
+
 - Test with history-free and history-preserving RelStorage. Note that
   history-preserving RelStorage requires RelStorage 3.3 or above, and
   Python 2.7 or Python 3.6 and above.
