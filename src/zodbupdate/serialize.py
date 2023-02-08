@@ -18,8 +18,6 @@ import logging
 import sys
 import types
 
-import six
-
 import zodbpickle
 from ZODB.broken import Broken
 from ZODB.broken import find_global
@@ -73,7 +71,7 @@ def create_broken_module_for(symb):
         setattr(sys.modules[symb.__module__], symb.__name__, symb)
 
 
-class BrokenModuleFinder(object):
+class BrokenModuleFinder:
     """This broken module finder works with create_broken_module_for.
     """
 
@@ -93,7 +91,7 @@ class BrokenModuleFinder(object):
 sys.meta_path.append(BrokenModuleFinder())
 
 
-class NullIterator(six.Iterator):
+class NullIterator:
     """An empty iterator that doesn't gives any result.
     """
 
@@ -114,8 +112,7 @@ class IterableClass(type):
         return NullIterator()
 
 
-@six.add_metaclass(IterableClass)
-class ZODBBroken(Broken):
+class ZODBBroken(Broken, metaclass=IterableClass):
     """Extend ZODB Broken to work with broken objects that doesn't
     have any __Broken_newargs__ sets (which happens if their __new__
     method is not called).
@@ -130,7 +127,7 @@ class ZODBBroken(Broken):
                 self.__Broken_state__)
 
 
-class ZODBReference(object):
+class ZODBReference:
     """Class to remember reference we don't want to touch.
     """
 
@@ -138,7 +135,7 @@ class ZODBReference(object):
         self.ref = ref
 
 
-class ObjectRenamer(object):
+class ObjectRenamer:
     """This load and save a ZODB record, modifying all references to
     renamed class according the given renaming rules:
 
@@ -291,11 +288,11 @@ class ObjectRenamer(object):
         if not self.__decoders:
             return
         key = None
-        if isinstance(class_meta, six.class_types):
+        if isinstance(class_meta, type):
             key = (class_meta.__module__, class_meta.__name__)
         elif isinstance(class_meta, tuple):
             symb, args = class_meta
-            if isinstance(symb, six.class_types):
+            if isinstance(symb, type):
                 key = (symb.__module__, symb.__name__)
             elif isinstance(symb, tuple):
                 key = symb
@@ -348,7 +345,7 @@ class ObjectRenamer(object):
                 pickler.dump(data)
             except utils.PicklingError as error:
                 logger.error(
-                    'Error: cannot pickle modified record: {}'.format(error))
+                    f'Error: cannot pickle modified record: {error}')
                 # Could not pickle that record, skip it.
                 return None
 

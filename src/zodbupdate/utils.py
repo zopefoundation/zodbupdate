@@ -15,50 +15,36 @@
 import logging
 import sys
 
-import six
-
 import ZODB._compat
 import zodbpickle
+import zodbpickle.pickle as pickle
 from ZODB.broken import Broken
 
 
 def is_broken(symb):
     """Return true if the given symbol is broken.
     """
-    return isinstance(symb, six.class_types) and issubclass(symb, Broken)
+    return isinstance(symb, type) and issubclass(symb, Broken)
 
 
-if six.PY3:
-    import zodbpickle.pickle as pickle
+class UnpicklerImpl(pickle.Unpickler):
 
-    class UnpicklerImpl(pickle.Unpickler):
+    def __init__(self, f, **kw):
+        super().__init__(f, **kw)
 
-        def __init__(self, f, **kw):
-            super(UnpicklerImpl, self).__init__(f, **kw)
+    # Python doesn't allow assignments to find_global,
+    # instead, find_class can be overridden
 
-        # Py3: Python 3 doesn't allow assignments to find_global,
-        # instead, find_class can be overridden
+    find_global = None
 
-        find_global = None
-
-        def find_class(self, modulename, name):
-            if self.find_global is None:
-                return super(UnpicklerImpl, self).find_class(modulename, name)
-            return self.find_global(modulename, name)
-
-else:
-    try:
-        import zodbpickle.fastpickle as pickle
-    except ImportError:
-        import zodbpickle.pickle as pickle
-
-    UnpicklerImpl = pickle.Unpickler
+    def find_class(self, modulename, name):
+        if self.find_global is None:
+            return super().find_class(modulename, name)
+        return self.find_global(modulename, name)
 
 
 PicklingError = pickle.PicklingError
-
 logger = logging.getLogger('zodbupdate')
-
 DEFAULT_PROTOCOL = ZODB._compat._protocol
 
 
@@ -80,8 +66,6 @@ def Pickler(
         output_file, persistent_id, protocol=DEFAULT_PROTOCOL):
     # Please refer to ZODB._compat for explanation.
     pickler = pickle.Pickler(output_file, protocol)
-    if not six.PY3:
-        pickler.inst_persistent_id = persistent_id
     pickler.persistent_id = persistent_id
     return pickler
 
@@ -92,7 +76,7 @@ ENCODING = sys.getdefaultencoding()
 def safe_binary(value):
     if isinstance(value, bytes):
         return zodbpickle.binary(value)
-    if isinstance(value, six.text_type):
+    if isinstance(value, str):
         return zodbpickle.binary(value.encode(ENCODING))
     return value
 

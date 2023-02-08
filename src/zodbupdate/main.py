@@ -18,7 +18,6 @@ import pprint
 import time
 
 import pkg_resources
-import six
 
 import ZODB.config
 import ZODB.FileStorage
@@ -81,7 +80,7 @@ parser.add_argument(
 )
 
 
-class DuplicateFilter(object):
+class DuplicateFilter:
 
     def __init__(self):
         self.reset()
@@ -139,11 +138,6 @@ def create_updater(
     if not start_at:
         start_at = '0x00'
 
-    if six.PY2 and encoding:
-        raise AssertionError(
-            'Unpickling with a default encoding is only supported in Python 3.'
-        )
-
     decoders = {}
     if default_decoders:
         decoders.update(default_decoders)
@@ -193,12 +187,11 @@ def main():
         raise AssertionError(
             'Exactly one of --file or --config must be given.')
 
-    # Magic bytes need to be converted at the end when running in Python 2
-    # but at the beginning when running in Python 3 so that FileStorage
+    # Magic bytes need to be at the beginning so that FileStorage
     # doesn't complain.
-    if args.convert_py3 and six.PY3 and not args.dry_run:
+    if args.convert_py3 and not args.dry_run:
         zodbupdate.convert.update_magic_data_fs(args.file)
-    elif args.convert_py3 and six.PY3 and args.dry_run:
+    elif args.convert_py3 and args.dry_run:
         zodb_magic = zodbupdate.utils.get_zodb_magic(args.file)
         if zodb_magic != ZODB.FileStorage.packed_version:
             raise SystemExit(
@@ -227,15 +220,15 @@ def main():
         updater()
     except Exception as error:
         logging.info('An error occured', exc_info=True)
-        logging.error('Stopped processing, due to: {}'.format(error))
+        logging.error(f'Stopped processing, due to: {error}')
         raise AssertionError()
 
     implicit_renames = format_renames(
         updater.processor.get_rules(implicit=True))
     if implicit_renames:
-        logger.info('Found new rules: {}'.format(implicit_renames))
+        logger.info(f'Found new rules: {implicit_renames}')
     if args.save_renames:
-        logger.info('Saving rules into {}'.format(args.save_renames))
+        logger.info(f'Saving rules into {args.save_renames}')
         with open(args.save_renames, 'w') as output:
             output.write('renames = {}'.format(
                 format_renames(updater.processor.get_rules(
@@ -244,6 +237,3 @@ def main():
         logger.info('Packing storage ...')
         storage.pack(time.time(), ZODB.serialize.referencesf)
     storage.close()
-
-    if args.convert_py3 and six.PY2 and not args.dry_run:
-        zodbupdate.convert.update_magic_data_fs(args.file)

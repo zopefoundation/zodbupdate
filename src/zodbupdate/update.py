@@ -17,8 +17,6 @@ import logging
 from struct import pack
 from struct import unpack
 
-import six
-
 import ZODB.broken
 import ZODB.POSException
 import ZODB.utils
@@ -38,7 +36,7 @@ logger = logging.getLogger('zodbupdate')
 TRANSACTION_COUNT = 100000
 
 
-class Updater(object):
+class Updater:
     """Access a storage and perform operations on all of its records.
     """
 
@@ -62,7 +60,7 @@ class Updater(object):
     def __new_transaction(self):
         t = TransactionMetaData()
         self.storage.tpc_begin(t)
-        t.note(six.u('Updated factory references using `zodbupdate`.'))
+        t.note('Updated factory references using `zodbupdate`.')
         return t
 
     def __commit_transaction(self, t, changed, commit_count):
@@ -72,7 +70,7 @@ class Updater(object):
                 'aborting transaction. (#{})'.format(commit_count))
             self.storage.tpc_abort(t)
         else:
-            logger.info('Committing changes (#{}).'.format(commit_count))
+            logger.info(f'Committing changes (#{commit_count}).')
             self.storage.tpc_vote(t)
             self.storage.tpc_finish(t)
 
