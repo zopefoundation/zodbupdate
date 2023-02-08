@@ -1,7 +1,7 @@
 Changes
 =======
 
-1.6 (unreleased)
+2.0 (unreleased)
 ----------------
 
 - Test with history-free and history-preserving RelStorage. Note that
