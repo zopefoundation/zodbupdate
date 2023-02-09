@@ -1,4 +1,3 @@
-# encoding=utf-8
 ##############################################################################
 #
 # Copyright (c) 2009 Zope Corporation and Contributors.
@@ -22,15 +21,15 @@ import types
 import unittest
 from contextlib import contextmanager
 
+import persistent
+import transaction
 import ZODB
 import ZODB.broken
-import persistent
-import six
-import transaction
 import zope.interface
 
 import zodbupdate.main
 import zodbupdate.serialize
+
 
 # pylint:disable=protected-access,too-many-lines
 
@@ -41,7 +40,7 @@ class TestsBasics(unittest.TestCase):
 
     def test_decode_attribute(self):
         from zodbupdate.convert import decode_attribute
-        test_string = u'Hellö World'
+        test_string = 'Hellö World'
 
         # 1.1) with utf8 encoding and no fallbacks, input is utf8
         decoder = decode_attribute(
@@ -81,7 +80,7 @@ class TestsBasics(unittest.TestCase):
         self.assertEqual(test_data['testattr'], test_string)
 
 
-class TestLogHandler(object):
+class TestLogHandler:
     level = logging.DEBUG
 
     def __init__(self, msg_lst):
@@ -92,10 +91,10 @@ class TestLogHandler(object):
             self.msg_lst.append(record.msg)
 
 
-class StorageUpdateMixin(object):
+class StorageUpdateMixin:
 
     def setUp(self):
-        super(StorageUpdateMixin, self).setUp()
+        super().setUp()
         self.log_messages = []
         self.log_handler = TestLogHandler(self.log_messages)
         self.logger = zodbupdate.main.setup_logger(handler=self.log_handler)
@@ -119,7 +118,7 @@ class StorageUpdateMixin(object):
             {'__module__': 'module2.interfaces'},
         )
 
-        class Data(object):
+        class Data:
             pass
 
         class OldData:
@@ -167,8 +166,8 @@ class StorageUpdateMixin(object):
         children, will be removed when the test is torn down *after* closing
         the storage returned by this method.
         """
-        from ZODB.FileStorage import FileStorage
         from ZODB.blob import BlobStorage
+        from ZODB.FileStorage import FileStorage
 
         blob_dir = os.path.join(self.temp_dir, 'blobs')
         dbfile = os.path.join(self.temp_dir, 'Data.fs')
@@ -214,7 +213,7 @@ class StorageUpdateMixin(object):
         shutil.rmtree(self.temp_dir)
 
         zodbupdate.serialize.SKIP_SYMBS = self._skipped_symbs
-        super(StorageUpdateMixin, self).tearDown()
+        super().tearDown()
 
     def _tearDownStorage(self):
         """
@@ -229,9 +228,6 @@ class StorageUpdateMixin(object):
 
 
 class AnyPythonTestsMixin(StorageUpdateMixin):
-    """
-    Tests that run on both Python 2 and Python 3.
-    """
 
     def test_no_transaction_if_no_changes(self):
         # If an update run doesn't produce any changes it won't commit the
@@ -245,9 +241,9 @@ class AnyPythonTestsMixin(StorageUpdateMixin):
     def test_factory_registered_with_copy_reg(self):
         # Factories registered with copy_reg.pickle loose their __name__.
         # We simply ignore those.
-        from six.moves import copyreg
+        import copyreg
 
-        class AnonymousFactory(object):
+        class AnonymousFactory:
 
             def __new__(cls, name):
                 return object.__new__(cls)
@@ -309,575 +305,6 @@ class AnyPythonTestsMixin(StorageUpdateMixin):
         self.assertNotEqual(old_serial, serial)
 
 
-@unittest.skipUnless(six.PY2, "Only runs on Python 2")
-class Python2TestsMixin(object):
-
-    def test_convert_with_default_encoding(self):
-        # Python 2's pickle doesn't support an encoding parameter
-        with self.assertRaises(AssertionError):
-            self.update(encoding='utf-8')
-
-    def test_convert_attribute_to_bytes(self):
-        from zodbupdate.convert import encode_binary
-
-        test = sys.modules['module1'].Factory()
-        test.binary = 'this looks like binary'
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True, default_decoders={
-            ('module1', 'Factory'): [encode_binary('binary')]})
-
-        # Protocol is 3 (x80x03) now and the string is encoded as
-        # bytes (C).
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\x06binaryq\x03C\x16this looks like binarys.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_attribute_to_unicode(self):
-        from zodbupdate.convert import decode_attribute
-
-        test = sys.modules['module1'].Factory()
-        test.text = u'text élégant'.encode('utf-8')
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True, default_decoders={
-            ('module1', 'Factory'): [decode_attribute('text', 'utf-8')]})
-
-        # Protocol is 3 (x80x03) now and the string is encoded as unicode (X)
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\x04textq\x03'
-            'X\x0e\x00\x00\x00text \xc3\xa9l\xc3\xa9gantq\x04s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_attribute_to_unicode_2(self):
-        from zodbupdate.convert import decode_attribute
-
-        test = sys.modules['module1'].Factory()
-        test.text = u'text élégant'.encode('utf-8')
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True, default_decoders={
-            ('module1', 'Factory'): [decode_attribute('text', 'utf-8')]})
-
-    def test_convert_object_references(self):
-        test = sys.modules['module1'].Factory()
-        test.reference = sys.modules['module1'].Factory()
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and oid in the object reference
-        # is encoded as bytes (C).
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\treferenceq\x03'
-            'C\x08\x00\x00\x00\x00\x00\x00\x00\x02h\x01\x86q\x04Qs.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_set_to_py3(self):
-        test = sys.modules['module1'].Factory()
-        test.favourite_numbers = {0xaa, 0xbb, 0xcc, 0xdd}
-        self.root['test'] = test
-        transaction.commit()
-
-        # This is what a Python 2 pickle looks like -- we'll reuse it
-        # in Python3Tests
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                b'\x80\x02cmodule1\nFactory\nq\x01.'
-                b'\x80\x02}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
-                b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
-                # ZODB >= 5.4
-                b'\x80\x03cmodule1\nFactory\nq\x01.'
-                b'\x80\x03}q\x02U\x11favourite_numbersq\x03c__builtin__\nset\n'
-                b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
-            )
-        )
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and __builtin__.set is now builtins.set.
-        self.assertEqual(
-            b'\x80\x03cmodule1\nFactory\nq\x01.'
-            b'\x80\x03}q\x02U\x11favourite_numbersq\x03cbuiltins\nset\n'
-            b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_sets_Set_to_py3(self):
-        import sets  # pylint:disable=import-error
-
-        test = sys.modules['module1'].Factory()
-        test.favourite_numbers = sets.Set([0xaa, 0xbb, 0xcc, 0xdd])
-        self.root['test'] = test
-        transaction.commit()
-
-        # This is what a Python 2 pickle looks like -- we'll reuse it
-        # in Python3Tests
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                b'\x80\x02cmodule1\nFactory\nq\x01.'
-                b'\x80\x02}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
-                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85'
-                b'bs.',
-                # ZODB >= 5.4
-                b'\x80\x03cmodule1\nFactory\nq\x01.'
-                b'\x80\x03}q\x02U\x11favourite_numbersq\x03csets\nSet\nq\x04'
-                b')\x81q\x05}q\x06(K\xaa\x88K\xbb\x88K\xcc\x88K\xdd\x88u\x85'
-                b'bs.',
-            )
-        )
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and sets.Set is encoded
-        # as a builtin set
-        self.assertEqual(
-            b'\x80\x03cmodule1\nFactory\nq\x01.'
-            b'\x80\x03}q\x02U\x11favourite_numbersq\x03cbuiltins\nset\n'
-            b'q\x04]q\x05(K\xaaK\xbbK\xccK\xdde\x85Rq\x06s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_datetime_to_py3(self):
-        import datetime
-
-        test = sys.modules['module1'].Factory()
-        test.date_of_birth = datetime.datetime(2018, 12, 12)
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and datetime payload is encoded
-        # as bytes (C).
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\rdate_of_birthq\x03cdatetime\ndatetime\nq\x04'
-            'C\n\x07\xe2\x0c\x0c\x00\x00\x00\x00\x00\x00\x85Rq\x05s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_date_to_py3(self):
-        import datetime
-
-        test = sys.modules['module1'].Factory()
-        test.date_of_birth = datetime.date(2018, 12, 12)
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and datetime payload is encoded
-        # as bytes (C).
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\rdate_of_birthq\x03'
-            'cdatetime\ndate\nq\x04C\x04\x07\xe2\x0c\x0c\x85Rq\x05s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_convert_time_to_py3(self):
-        import datetime
-
-        test = sys.modules['module1'].Factory()
-        test.date_of_birth = datetime.time(12, 12)
-        self.root['test'] = test
-        transaction.commit()
-
-        self.update(convert_py3=True)
-
-        # Protocol is 3 (x80x03) now and datetime payload is encoded
-        # as bytes (C).
-        self.assertEqual(
-            '\x80\x03cmodule1\nFactory\nq\x01.'
-            '\x80\x03}q\x02U\rdate_of_birthq\x03cdatetime\ntime\nq\x04'
-            'C\x06\x0c\x0c\x00\x00\x00\x00\x85Rq\x05s.',
-            self.storage.load(self.root['test']._p_oid, '')[0])
-
-    def test_factory_ignore_missing_persistent(self):
-        # Create a ZODB with an object referencing a factory, then
-        # remove the factory and update the ZODB.
-        self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-        del sys.modules['module1'].Factory
-
-        updater = self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.\x80\x03}q\x02.',
-            )
-        )
-        self.assertTrue(
-            isinstance(self.root['test'], ZODB.broken.PersistentBroken))
-        self.assertTrue(len(self.log_messages))
-        self.assertEqual(
-            ['Warning: Missing factory for module1 Factory'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_factory_ignore_missing_reference(self):
-        factory = self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-
-        other = self.root['other'] = sys.modules['module2'].OtherFactory()
-        factory.other = other
-        transaction.commit()
-        del sys.modules['module2']
-
-        updater = self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.'
-                '\x80\x02}q\x02U\x05otherq\x03'
-                'U\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x04'
-                'cmodule2\nOtherFactory\nq\x05\x86Qs.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.'
-                '\x80\x03}q\x02U\x05otherq\x03'
-                'C\x08\x00\x00\x00\x00\x00\x00\x00\x02'
-                'cmodule2\nOtherFactory\nq\x04\x86Qs.',
-            )
-        )
-
-        self.assertTrue(
-            isinstance(self.root['other'], ZODB.broken.PersistentBroken))
-        self.assertTrue(len(self.log_messages))
-        self.assertEqual(
-            ['Warning: Missing factory for module2 OtherFactory'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_factory_ignore_missing_object(self):
-        factory = self.root['test'] = sys.modules['module1'].Factory()
-        factory.data = sys.modules['module1'].Data()
-        transaction.commit()
-        del sys.modules['module1'].Data
-
-        updater = self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.'
-                '\x80\x02}q\x02U\x04dataq\x03'
-                'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.'
-                '\x80\x03}q\x02U\x04dataq\x03'
-                'cmodule1\nData\nq\x04)\x81q\x05}q\x06bs.',
-            )
-        )
-        self.assertTrue(len(self.log_messages))
-        self.assertEqual(
-            ['Warning: Missing factory for module1 Data'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_factory_ignore_missing_class(self):
-        factory = self.root['test'] = sys.modules['module2'].OtherFactory()
-        factory.data = sys.modules['module1'].Data
-        transaction.commit()
-        del sys.modules['module1']
-
-        updater = self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule2\nOtherFactory\nq\x01.'
-                '\x80\x02}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule2\nOtherFactory\nq\x01.'
-                '\x80\x03}q\x02U\x04dataq\x03cmodule1\nData\nq\x04s.',
-            )
-        )
-        self.assertTrue(len(self.log_messages))
-        self.assertEqual(
-            ['Warning: Missing factory for module1 Data'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_factory_ignore_missing_interface(self):
-        factory = self.root['test'] = sys.modules['module1'].Factory()
-        zope.interface.alsoProvides(
-            factory, sys.modules['module1.interfaces'].IFactory)
-        transaction.commit()
-        del sys.modules['module1']
-        del sys.modules['module1.interfaces']
-
-        updater = self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.'
-                '\x80\x02}q\x02U\x0c__provides__q\x03'
-                'czope.interface.declarations\nProvides\nq\x04h\x01'
-                'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
-                # ZODb >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.'
-                '\x80\x03}q\x02U\x0c__provides__q\x03'
-                'czope.interface.declarations\nProvides\nq\x04h\x01'
-                'cmodule1.interfaces\nIFactory\nq\x05\x86q\x06Rq\x07s.',
-            )
-        )
-        self.assertTrue(len(self.log_messages))
-        self.assertEqual(
-            ['Warning: Missing factory for module1 Factory',
-             'Warning: Missing factory for module1.interfaces IFactory'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_factory_renamed(self):
-        # Create a ZODB with an object referencing a factory, then
-        # rename the the factory but keep a reference from the old name in
-        # place. Update the ZODB. Then remove the old reference. We should
-        # then still be able to access the object.
-        self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-
-        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
-        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
-
-        updater = self.update(debug=True)
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nNewFactory\nq\x01.\x80\x03}q\x02.',
-            )
-        )
-
-        self.assertEqual('module1', self.root['test'].__class__.__module__)
-        self.assertEqual('NewFactory', self.root['test'].__class__.__name__)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual(
-            {('module1', 'Factory'): ('module1', 'NewFactory')},
-            renames)
-
-    def test_factory_renamed_dryrun(self):
-        # Run an update with "dy run" option and see that the pickle is
-        # not updated.
-        self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-
-        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
-        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
-
-        updater = self.update(dry_run=True)
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.\x80\x03}q\x02.',
-            )
-        )
-
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual(
-            {('module1', 'Factory'): ('module1', 'NewFactory')},
-            renames)
-
-        updater = self.update(dry_run=False)
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nNewFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nNewFactory\nq\x01.\x80\x03}q\x02.',
-            )
-        )
-
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual(
-            {('module1', 'Factory'): ('module1', 'NewFactory')},
-            renames)
-
-    def test_loaded_renames_override_automatic(self):
-        # Same as test_factory_renamed, but provide a pre-defined rename
-        # dictionary whose rules will result in a different class being picked
-        # than what automatic detection would have done.
-        self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-
-        sys.modules['module1'].NewFactory = sys.modules['module1'].Factory
-        sys.modules['module1'].NewFactory.__name__ = 'NewFactory'
-
-        updater = self.update(
-            default_renames={
-                ('module1', 'Factory'): ('module2', 'OtherFactory')})
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule2\nOtherFactory\nq\x01.\x80\x03}q\x02.',
-            )
-        )
-
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_loaded_renames_override_missing_persistent(self):
-        self.root['test'] = sys.modules['module1'].Factory()
-        transaction.commit()
-
-        del sys.modules['module1'].Factory
-        updater = self.update(
-            default_renames={
-                ('module1', 'Factory'): ('module2', 'OtherFactory')})
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule2\nOtherFactory\nq\x01.\x80\x02}q\x02.',
-                # ZODB >= 5.4
-                '\x80\x03cmodule2\nOtherFactory\nq\x01.\x80\x03}q\x02.'
-            )
-        )
-
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_loaded_renames_override_missing_interfaces(self):
-        IModule1 = zope.interface.interface.InterfaceClass(
-            'IModule1',
-            (zope.interface.Interface,),
-            {'__module__': 'module1'},
-        )
-
-        sys.modules['module1'].IModule1 = IModule1
-
-        factory = self.root['test'] = sys.modules['module1'].Factory()
-        zope.interface.alsoProvides(
-            factory, sys.modules['module1.interfaces'].IFactory, IModule1)
-        transaction.commit()
-        del sys.modules['module1'].interfaces
-        del sys.modules['module1.interfaces']
-        del sys.modules['module1']
-
-        updater = self.update(
-            default_renames={
-                ('module1.interfaces', 'IFactory'):
-                ('module2.interfaces', 'IOtherFactory'),
-                ('module1', 'Factory'):
-                ('module2', 'OtherFactory')})
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4.0
-                '\x80\x02cmodule2\nOtherFactory\nq\x01.'
-                '\x80\x02}q\x02U\x0c__provides__q\x03'
-                'czope.interface.declarations\nProvides\nq\x04h\x01'
-                'cmodule2.interfaces\nIOtherFactory\nq\x05'
-                'cmodule1\nIModule1\nq\x06\x87q\x07Rq\x08s.',
-                # ZODB >= 5.4.0
-                '\x80\x03cmodule2\nOtherFactory\nq\x01.'
-                '\x80\x03}q\x02U\x0c__provides__q\x03'
-                'czope.interface.declarations\nProvides\nq\x04h\x01'
-                'cmodule2.interfaces\nIOtherFactory\nq\x05'
-                'cmodule1\nIModule1\nq\x06\x87q\x07Rq\x08s.',
-            )
-        )
-        self.assertEqual(
-            ['Warning: Missing factory for module1 IModule1'],
-            self.log_messages)
-        renames = updater.processor.get_rules(implicit=True)
-        self.assertEqual({}, renames)
-
-    def test_old_style_class(self):
-        factory = self.root['test'] = sys.modules['module1'].Factory()
-        factory.data = sys.modules['module1'].OldData()
-        transaction.commit()
-
-        self.update()
-
-        self.assertIn(
-            self.storage.load(self.root['test']._p_oid, '')[0],
-            (
-                # ZODB < 5.4
-                '\x80\x02cmodule1\nFactory\nq\x01.'
-                '\x80\x02}q\x02U\x04dataq\x03(cmodule1\nOldData'
-                '\nq\x04oq\x05}q\x06bs.'
-                # ZODB >= 5.4
-                '\x80\x03cmodule1\nFactory\nq\x01.'
-                '\x80\x03}q\x02U\x04dataq\x03(cmodule1\nOldData'
-                '\nq\x04oq\x05}q\x06bs.'
-            )
-        )
-
-    def test_encode_binary_leaves_none_untouched(self):
-        from zodbupdate.convert import encode_binary
-        mock = dict()
-        mock['foo'] = None
-        encoder = encode_binary('foo')
-        result = encoder(mock)
-        self.assertFalse(result)
-        self.assertIsNone(mock['foo'])
-
-    def test_decode_attribute_leaves_none_untouched(self):
-        from zodbupdate.convert import decode_attribute
-        mock = dict()
-        mock['foo'] = None
-        encoder = decode_attribute('foo', 'utf-8')
-        result = encoder(mock)
-        self.assertFalse(result)
-        self.assertIsNone(mock['foo'])
-
-    def test_blobs_are_left_untouched(self):
-        blob = ZODB.blob.Blob()
-        self.root['blob'] = blob
-        transaction.commit()
-
-        oid = self.root['blob']._p_oid
-        old_pickle, old_serial = self.storage.load(oid)
-
-        self.update(convert_py3=True)
-
-        pickle, serial = self.storage.load(oid)
-        self.assertEqual(old_pickle, pickle)
-        self.assertEqual(old_serial, serial)
-
-        # make sure the reference to the blob was converted
-        self.assertIn(
-            b'C\x08\x00\x00\x00\x00\x00\x00\x00\x01cZODB.blob',
-            self.storage.load(self.root._p_oid, '')[0]
-        )
-
-
 @contextmanager
 def overridePickle(obj_to_override, pickle_data):
     orig_serialize = ZODB.serialize.ObjectWriter.serialize
@@ -894,8 +321,7 @@ def overridePickle(obj_to_override, pickle_data):
         ZODB.serialize.ObjectWriter.serialize = orig_serialize
 
 
-@unittest.skipUnless(six.PY3, "Only runs on Python 3")
-class Python3TestsMixin(object):
+class Python3TestsMixin:
 
     def test_convert_attribute_to_bytes(self):
         from zodbupdate.convert import encode_binary
@@ -920,7 +346,7 @@ class Python3TestsMixin(object):
         from zodbupdate.convert import decode_attribute
 
         test = sys.modules['module1'].Factory()
-        test.text = u'text élégant'.encode('utf-8')
+        test.text = 'text élégant'.encode()
         self.root['test'] = test
         transaction.commit()
 
@@ -1307,14 +733,14 @@ class Python3TestsMixin(object):
 # Mixins to create storages.
 ###
 
-class FileStorageMixin(object):
+class FileStorageMixin:
     """
     Setup for FileStorage.
     """
 
     def _makeStorage(self):
-        from ZODB.FileStorage import FileStorage
         from ZODB.blob import BlobStorage
+        from ZODB.FileStorage import FileStorage
 
         blob_dir = os.path.join(self.temp_dir, 'blobs')
         dbfile = os.path.join(self.temp_dir, 'Data.fs')
@@ -1325,7 +751,7 @@ class FileStorageMixin(object):
         )
 
 
-class RelStorageHFMixin(object):
+class RelStorageHFMixin:
     """
     Mixin to create a history-free RelStorage using SQLite.
     """
@@ -1333,10 +759,6 @@ class RelStorageHFMixin(object):
     keep_history = 'false'
 
     def _makeStorage(self):
-        if sys.version_info[0] > 2 and sys.version_info[:2] < (3, 6):
-            raise unittest.SkipTest(
-                'RelStorage+sqlite requires Python 2.7 or 3.6+')
-
         from ZODB import config
         return self._validate_relstorage(config.storageFromString(
             """
@@ -1405,30 +827,6 @@ class RelStorageHFAnyPythonTests(
 class RelStorageHPAnyPythonTests(
         RelStorageHPMixin,
         AnyPythonTestsMixin,
-        StorageUpdateMixin,
-        unittest.TestCase):
-    pass
-
-
-class FileStoragePython2Tests(
-        FileStorageMixin,
-        Python2TestsMixin,
-        StorageUpdateMixin,
-        unittest.TestCase):
-    pass
-
-
-class RelStorageHFPython2Tests(
-        RelStorageHFMixin,
-        Python2TestsMixin,
-        StorageUpdateMixin,
-        unittest.TestCase):
-    pass
-
-
-class RelStorageHPPython2Tests(
-        RelStorageHPMixin,
-        Python2TestsMixin,
         StorageUpdateMixin,
         unittest.TestCase):
     pass

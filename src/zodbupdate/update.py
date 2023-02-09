@@ -14,20 +14,21 @@
 
 import io
 import logging
-from struct import pack, unpack
+from struct import pack
+from struct import unpack
 
-import ZODB.POSException
 import ZODB.broken
+import ZODB.POSException
 import ZODB.utils
-import six
-import zodbupdate.serialize
-import zodbupdate.utils
+from ZODB.blob import BlobStorage
 from ZODB.Connection import TransactionMetaData
 from ZODB.FileStorage import FileStorage
-from ZODB.blob import BlobStorage
 from ZODB.interfaces import IStorageCurrentRecordIteration
 from ZODB.interfaces import IStorageIteration
 from ZODB.interfaces import IStorageUndoable
+
+import zodbupdate.serialize
+import zodbupdate.utils
 
 
 logger = logging.getLogger('zodbupdate')
@@ -35,7 +36,7 @@ logger = logging.getLogger('zodbupdate')
 TRANSACTION_COUNT = 100000
 
 
-class Updater(object):
+class Updater:
     """Access a storage and perform operations on all of its records.
     """
 
@@ -59,7 +60,7 @@ class Updater(object):
     def __new_transaction(self):
         t = TransactionMetaData()
         self.storage.tpc_begin(t)
-        t.note(six.u('Updated factory references using `zodbupdate`.'))
+        t.note('Updated factory references using `zodbupdate`.')
         return t
 
     def __commit_transaction(self, t, changed, commit_count):
@@ -69,7 +70,7 @@ class Updater(object):
                 'aborting transaction. (#{})'.format(commit_count))
             self.storage.tpc_abort(t)
         else:
-            logger.info('Committing changes (#{}).'.format(commit_count))
+            logger.info(f'Committing changes (#{commit_count}).')
             self.storage.tpc_vote(t)
             self.storage.tpc_finish(t)
 
@@ -103,8 +104,8 @@ class Updater(object):
         except Exception as error:
             if not self.debug:
                 raise
-            import sys
             import pdb
+            import sys
             (type, value, traceback) = sys.exc_info()
             pdb.post_mortem(traceback)
             del traceback
