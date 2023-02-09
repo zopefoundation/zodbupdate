@@ -4,16 +4,14 @@ Changes
 2.0 (unreleased)
 ----------------
 
-- Add support for Python 3.10, 3.11.
+- Add support for Python 3.9, 3.10, 3.11.
 
 - Drop support for Python 2.7, 3.5, 3.6.
 
 - Test with history-free and history-preserving RelStorage. Note that
   history-preserving RelStorage requires RelStorage 3.3 or above, and
   Python 2.7 or Python 3.6 and above.
-  (`#30 <https://github.com/zopefoundation/zodbupdate/issues/30>`__)
-
-- Add support for Python 3.9.
+  (`#30 <https://github.com/zopefoundation/zodbupdate/issues/30>`_)
 
 
 1.5 (2020-07-28)
