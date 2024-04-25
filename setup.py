@@ -25,6 +25,7 @@ tests_require = [
     'persistent',
     'zope.interface',
     'relstorage',
+    'six',  # not declared but used by relstorage 4.0.0
 ]
 
 setup(name='zodbupdate',

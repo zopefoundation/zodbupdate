@@ -4,7 +4,8 @@ Changes
 2.1 (unreleased)
 ----------------
 
-- Nothing changed yet.
+- Fix tests by declaring a dependency which is used in ``relstorage 4.0.0`` but
+  not declared.
 
 
 2.0 (2023-02-09)
