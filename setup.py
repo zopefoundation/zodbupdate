@@ -1,6 +1,6 @@
 ##############################################################################
 #
-# Copyright (c) 2009 Zope Corporation and Contributors.
+# Copyright (c) 2009 Zope Foundation and Contributors.
 # All Rights Reserved.
 #
 # This software is subject to the provisions of the Zope Public License,
@@ -32,7 +32,7 @@ setup(name='zodbupdate',
       author='Zope Developers',
       author_email='zope-dev@zope.dev',
       url='https://github.com/zopefoundation/zodbupdate/',
-      license='ZPL 2.1',
+      license='ZPL-2.1',
       description='Update ZODB class references for moved or renamed classes.',
       classifiers=[
           "Development Status :: 6 - Mature",
@@ -42,11 +42,11 @@ setup(name='zodbupdate',
           "Operating System :: OS Independent",
           "Programming Language :: Python",
           "Programming Language :: Python :: 3",
-          "Programming Language :: Python :: 3.7",
-          "Programming Language :: Python :: 3.8",
           "Programming Language :: Python :: 3.9",
           "Programming Language :: Python :: 3.10",
           "Programming Language :: Python :: 3.11",
+          "Programming Language :: Python :: 3.12",
+          "Programming Language :: Python :: 3.13",
           "Programming Language :: Python :: Implementation :: CPython",
       ],
       long_description=(
@@ -58,7 +58,7 @@ setup(name='zodbupdate',
       package_dir={'': 'src'},
       packages=find_packages('src'),
       include_package_data=True,
-      python_requires='>=3.7',
+      python_requires='>=3.9',
       install_requires=[
           'ZODB',
           'setuptools',
