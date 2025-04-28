@@ -4,6 +4,8 @@ Changes
 2.1 (unreleased)
 ----------------
 
+- Drop support for Python 3.7, 3.8.
+
 - Fix tests by declaring a dependency which is used in ``relstorage 4.0.0`` but
   not declared.
 
