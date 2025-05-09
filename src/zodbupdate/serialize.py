@@ -13,6 +13,7 @@
 ##############################################################################
 
 import contextlib
+import importlib.util
 import io
 import logging
 import sys
@@ -86,6 +87,16 @@ class BrokenModuleFinder:
         if fullname in known_broken_modules:
             return self
         return None
+
+    def find_spec(self, fullname, path=None, target=None):
+        # Python 3.12+ requires to implement this method, it no longer does
+        # the fallback on its own.
+        # See
+        # https://docs.python.org/3/library/importlib.html#importlib.abc.MetaPathFinder.find_spec
+        loader = self.find_module(fullname, path)
+        if loader is None:
+            return None
+        return importlib.util.spec_from_loader(fullname, self)
 
 
 sys.meta_path.append(BrokenModuleFinder())

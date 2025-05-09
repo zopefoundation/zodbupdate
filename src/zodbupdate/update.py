@@ -104,7 +104,7 @@ class Updater:
         except Exception as error:
             if not self.debug:
                 raise
-            import pdb
+            import pdb  # noqa: T100 import for pdb found
             import sys
             (type, value, traceback) = sys.exc_info()
             pdb.post_mortem(traceback)
