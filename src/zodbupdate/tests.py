@@ -509,8 +509,10 @@ class Python3TestsMixin:
         self.assertEqual(
             b'\x80\x03cmodule1\nFactory\nq\x00.\x80\x03}q\x01.',
             self.storage.load(self.root['test']._p_oid, '')[0])
-        self.assertTrue(
-            isinstance(self.root['test'], ZODB.broken.PersistentBroken))
+        self.assertIsInstance(
+            self.root['test'],
+            ZODB.broken.PersistentBroken
+        )
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             ['Warning: Missing factory for module1 Factory'],
@@ -535,8 +537,10 @@ class Python3TestsMixin:
             b'C\x08\x00\x00\x00\x00\x00\x00\x00\x02q\x03'
             b'cmodule2\nOtherFactory\nq\x04\x86q\x05Qs.',
             self.storage.load(self.root['test']._p_oid, '')[0])
-        self.assertTrue(
-            isinstance(self.root['other'], ZODB.broken.PersistentBroken))
+        self.assertIsInstance(
+            self.root['other'],
+            ZODB.broken.PersistentBroken
+        )
         self.assertTrue(len(self.log_messages))
         self.assertEqual(
             ['Warning: Missing factory for module2 OtherFactory'],
