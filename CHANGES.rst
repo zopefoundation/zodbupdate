@@ -3,6 +3,9 @@ Changes
 
 2.1 (unreleased)
 ----------------
+- Drop ``pkg_resources`` for getting entry points.
+  On Python 3.9 we require ``importlib-metadata`` for this.
+  (`#47 <https://github.com/zopefoundation/zodbupdate/issues/47>`_)
 
 - Add support for Python 3.12, 3.13.
 

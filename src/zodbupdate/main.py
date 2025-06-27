@@ -15,9 +15,8 @@
 import argparse
 import logging
 import pprint
+import sys
 import time
-
-import pkg_resources
 
 import ZODB.config
 import ZODB.FileStorage
@@ -27,6 +26,11 @@ import zodbupdate.convert
 import zodbupdate.update
 import zodbupdate.utils
 
+
+if sys.version_info.major == 3 and sys.version_info.minor < 10:  # PY3.9
+    from importlib_metadata import entry_points  # pragma: no cover
+else:
+    from importlib.metadata import entry_points
 
 logger = logging.getLogger('zodbupdate')
 
@@ -116,12 +120,15 @@ def setup_logger(verbose=False, quiet=False, handler=None):
 
 def load_renames():
     renames = {}
-    for entry_point in pkg_resources.iter_entry_points('zodbupdate'):
+    for entry_point in entry_points().select(group='zodbupdate'):
         definition = entry_point.load()
         for old, new in definition.items():
             renames[tuple(old.split(' '))] = tuple(new.split(' '))
-        logger.info('Loaded {} rename rules from {}:{}'.format(
-            len(definition), entry_point.module_name, entry_point.name))
+        logger.info(
+            'Loaded %d rename rules from %s',
+            len(definition),
+            entry_point.value,
+        )
     return renames
 
 

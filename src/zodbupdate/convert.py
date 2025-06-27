@@ -4,12 +4,15 @@ import logging
 import sys
 import types
 
-import pkg_resources
-
 import zodbpickle
 
 from zodbupdate import utils
 
+
+if sys.version_info.major == 3 and sys.version_info.minor < 10:  # PY3.9
+    from importlib_metadata import entry_points  # pragma: no cover
+else:
+    from importlib.metadata import entry_points
 
 logger = logging.getLogger('zodbupdate')
 
@@ -153,7 +156,7 @@ def encode_binary(attribute):
 
 def load_decoders(encoding_fallbacks=[]):
     decoders = {}
-    for entry_point in pkg_resources.iter_entry_points('zodbupdate.decode'):
+    for entry_point in entry_points().select(group='zodbupdate.decode'):
         definition = entry_point.load()
         for attribute_path, encoding in definition.items():
             module, cls, attribute = attribute_path.split(' ')
@@ -163,8 +166,11 @@ def load_decoders(encoding_fallbacks=[]):
             else:
                 decoders.setdefault((module, cls), []).append(
                     decode_attribute(attribute, encoding, encoding_fallbacks))
-        logger.info('Loaded {} decode rules from {}:{}'.format(
-            len(definition), entry_point.module_name, entry_point.name))
+        logger.info(
+            'Loaded %d decode rules from %s',
+            len(definition),
+            entry_point.value,
+        )
     return decoders
 
 
