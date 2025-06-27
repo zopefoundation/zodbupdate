@@ -1,6 +1,12 @@
 Changes
 =======
 
+3.1 (unreleased)
+----------------
+
+- Nothing changed yet.
+
+
 3.0 (2025-06-27)
 ----------------
 - Drop ``pkg_resources`` for getting entry points.
