@@ -1,7 +1,7 @@
 Changes
 =======
 
-2.1 (unreleased)
+3.0 (unreleased)
 ----------------
 - Drop ``pkg_resources`` for getting entry points.
   On Python 3.9 we require ``importlib-metadata`` for this.
