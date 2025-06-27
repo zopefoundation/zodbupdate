@@ -9,7 +9,7 @@ import zodbpickle
 from zodbupdate import utils
 
 
-if sys.version_info.major == 3 and sys.version_info.minor < 10:
+if sys.version_info.major == 3 and sys.version_info.minor < 10:  # PY3.9
     from importlib_metadata import entry_points  # pragma: no cover
 else:
     from importlib.metadata import entry_points
