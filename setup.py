@@ -63,7 +63,7 @@ setup(name='zodbupdate',
           'ZODB',
           'transaction',
           'zodbpickle',
-          "importlib-metadata; python_version<'3.10'",
+          "importlib-metadata; python_version<'3.10'",  # PY3.9
       ],
       extras_require={'test': tests_require},
       zip_safe=False,
