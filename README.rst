@@ -170,9 +170,9 @@ instance ``utf-8`` here)::
 Please note that for the moment only attributes on Persistent classes
 are supported.
 
-Please also note that these conversion rules are _only_ selected for the 
-class that is referenced in the pickle, rules for superclasses are _not_ 
-applied. This means that you have to push down annotation rules to all 
+Please also note that these conversion rules are _only_ selected for the
+class that is referenced in the pickle, rules for superclasses are _not_
+applied. This means that you have to push down annotation rules to all
 the subclasses of a superclass that has a field that needs this annotation.
 
 Converting to Python 3 from within Python 3
